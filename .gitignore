@@ -1,3 +1,42 @@
-# data
+# OS & IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Python & Build
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
 *.csv
-*.parquet
+
+# Virtual Env
+.venv
+.env
+
+# Data & Models
+data/
+logs/*
+temp_file/
+catboost_info/
+*.pkl
+*.h5
+*.joblib
+
+# Specific Files
+main.py
+
+# Frontend (Web/pnpm)
+node_modules/
+web/frontend/dist/
+web/frontend/build/
+npm-debug.log*
+pnpm-debug.log*
+
+# Copy file
+*copy*
+
+# Other
+.obsidian/
