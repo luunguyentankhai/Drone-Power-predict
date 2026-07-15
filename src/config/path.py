@@ -11,5 +11,8 @@ RAW_PATH.mkdir(parents=True, exist_ok=True)
 PROCESS_PATH = DATA_PATH / "processed"
 PROCESS_PATH.mkdir(parents=True, exist_ok=True)
 
+MODEL_PATH = BASE / "models"
+MODEL_PATH.mkdir(parents=True, exist_ok=True)
+
 LOG_PATH = BASE / "logs"
 LOG_PATH.mkdir(parents=True, exist_ok=True)
