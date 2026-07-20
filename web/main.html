@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mô phỏng phân bổ hàng hóa cho đội drone</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Fleet Ops · Bin Packing Simulator</div>
+    <h1>Phân bổ hàng hóa cho đội <span>drone</span></h1>
+    <div class="sub">
+      Mỗi route có một tải trọng tối đa cho drone (lấy từ mô hình dự đoán năng lượng tiêu thụ theo pin còn lại).
+      Thêm đơn hàng theo route, nhấn <b>Bắt đầu mô phỏng</b> để xem thuật toán Best-Fit Decreasing
+      xếp từng đơn vào từng drone — ưu tiên lấp gần sát trần tải trọng, hết chỗ mới điều thêm drone kế tiếp.
+    </div>
+  </header>
+
+  <!-- ROUTE CONFIG -->
+  <div class="panel">
+    <h2><span class="n">1</span>Định mức tải trọng tối đa theo route</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:45%">Route</th>
+          <th style="width:35%">Tải trọng tối đa / drone (kg)</th>
+          <th style="width:20%"></th>
+        </tr>
+      </thead>
+      <tbody id="route-tbody"></tbody>
+    </table>
+    <button class="btn btn-add" id="add-route-btn">+ Thêm route</button>
+  </div>
+
+  <!-- PACKAGE INPUT -->
+  <div class="panel">
+    <h2><span class="n">2</span>Thêm đơn hàng</h2>
+    <div class="pkg-form">
+      <div class="field">
+        <label>Route</label>
+        <select id="pkg-route"></select>
+      </div>
+      <div class="field">
+        <label>Khối lượng (kg)</label>
+        <input type="number" id="pkg-kg" min="0.1" step="0.1" placeholder="vd: 2.5">
+      </div>
+      <button class="btn" id="add-pkg-btn">+ Thêm đơn</button>
+    </div>
+    <div class="pkg-list" id="pkg-list">
+      <span class="empty-note">Chưa có đơn hàng nào — thêm ít nhất 1 đơn để chạy mô phỏng.</span>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <div class="hint" id="pkg-count-hint">0 đơn hàng đang chờ phân bổ</div>
+    <button class="btn btn-primary" id="run-btn" disabled>▶ Bắt đầu mô phỏng</button>
+  </div>
+
+  <!-- SIMULATION OUTPUT -->
+  <div class="panel" id="sim-output">
+    <h2><span class="n">3</span>Kết quả phân bổ</h2>
+    <div id="routes-container"></div>
+  </div>
+
+  <footer>best-fit decreasing · drone payload allocator</footer>
+</div>
+
+<script src="scripts.js"></script>
+</body>
+</html>
