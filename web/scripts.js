@@ -10,6 +10,71 @@ let pkgCounter = 0;
 function rid(){ return 'r' + Math.random().toString(36).slice(2,9); }
 
 const PALETTE = ['#4fd1c5','#f5a623','#7c9cff','#e8615a','#8de65a','#ff9ecb','#c39bff','#5ad1e6'];
+const routeAssets = [
+  { src: 'Assets/R1.jpeg', title: 'Route R1' },
+  { src: 'Assets/R2_animation.gif', title: 'Route R2' },
+  { src: 'Assets/R3_animation.gif', title: 'Route R3' },
+  { src: 'Assets/R4_animation.gif', title: 'Route R4' },
+  { src: 'Assets/R5_animation.gif', title: 'Route R5' },
+  { src: 'Assets/R6_animation.gif', title: 'Route R6' },
+  { src: 'Assets/R7_animation.gif', title: 'Route R7' },
+];
+
+/* ---------- tabs ---------- */
+const tabButtons = document.querySelectorAll('.tab-btn');
+const mainTab = document.getElementById('main-tab');
+const routeTab = document.getElementById('route-tab');
+const routeGallery = document.getElementById('route-gallery');
+
+function switchTab(tabName){
+  tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+  mainTab.style.display = tabName === 'main' ? 'block' : 'none';
+  routeTab.style.display = tabName === 'route' ? 'block' : 'none';
+}
+
+tabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchTab(btn.dataset.tab);
+    if (btn.dataset.tab === 'route') renderRouteGallery();
+  });
+});
+
+const imageModal = document.getElementById('image-modal');
+const imageModalBackdrop = document.getElementById('image-modal-backdrop');
+const imageModalClose = document.getElementById('image-modal-close');
+const imageModalImg = document.getElementById('image-modal-img');
+const imageModalTitle = document.getElementById('image-modal-title');
+
+function openImageModal(src, title){
+  imageModalImg.src = src;
+  imageModalImg.alt = title;
+  imageModalTitle.textContent = title;
+  imageModal.classList.remove('hidden');
+}
+
+function closeImageModal(){
+  imageModal.classList.add('hidden');
+  imageModalImg.src = '';
+  imageModalImg.alt = '';
+}
+
+imageModalBackdrop.addEventListener('click', closeImageModal);
+imageModalClose.addEventListener('click', closeImageModal);
+
+function renderRouteGallery(){
+  routeGallery.innerHTML = routeAssets.map(asset => `
+    <div class="route-card" data-src="${asset.src}" data-title="${asset.title}">
+      <img src="${asset.src}" alt="${asset.title}">
+      <div class="route-card-title">${asset.title}</div>
+    </div>
+  `).join('');
+
+  routeGallery.querySelectorAll('.route-card').forEach(card => {
+    card.addEventListener('click', () => {
+      openImageModal(card.dataset.src, card.dataset.title);
+    });
+  });
+}
 
 /* ---------- hiển thị bảng tuyến đường ---------- */
 const routeTbody = document.getElementById('route-tbody');
@@ -68,7 +133,7 @@ const runBtn = document.getElementById('run-btn');
 
 function renderPkgList(){
   if (packages.length === 0){
-    pkgListEl.innerHTML = '<span class="empty-note">Chưa có đơn hàng nào — thêm ít nhất 1 đơn để chạy mô phỏng.</span>';
+    pkgListEl.innerHTML = '<span class="empty-note">No orders yet — add at least one order to run the simulation.</span>';
   } else {
     pkgListEl.innerHTML = packages.map(p => {
       const r = routes.find(r => r.id === p.routeId);
@@ -87,7 +152,7 @@ function renderPkgList(){
     });
   }
   const validPkgs = packages.filter(p => routes.some(r => r.id === p.routeId));
-  pkgCountHint.textContent = `${validPkgs.length} đơn hàng đang chờ phân bổ`;
+  pkgCountHint.textContent = `${validPkgs.length} orders waiting to be allocated`;
   runBtn.disabled = validPkgs.length === 0;
 }
 
@@ -155,7 +220,7 @@ function runSimulation(){
 
     const block = document.createElement('div');
     block.className = 'route-block';
-    block.innerHTML = `<div class="route-title">${route.name} · trần tải trọng ${route.capacity}kg / drone</div>`;
+    block.innerHTML = `<div class="route-title">${route.name} · max payload ${route.capacity}kg / drone</div>`;
     routesContainer.appendChild(block);
 
     bins.forEach(bin => {
@@ -192,7 +257,7 @@ function runSimulation(){
       box.className = 'unassigned-box';
       box.style.opacity = 0;
       box.style.transition = 'opacity .4s';
-      box.textContent = `⚠ ${unassigned.length} đơn hàng KHÔNG có drone nào của ${route.name} chở nổi (vượt trần ${route.capacity}kg/drone): ` +
+      box.textContent = `⚠ ${unassigned.length} orders cannot fit any drone on ${route.name} (over ${route.capacity}kg/drone): ` +
         unassigned.map(p => p.label + '(' + p.kg + 'kg)').join(', ');
       block.appendChild(box);
       setTimeout(() => { box.style.opacity = 1; }, delay + 200);
@@ -202,7 +267,7 @@ function runSimulation(){
     const totalDrones = bins.length;
     const note = document.createElement('div');
     note.className = 'summary-note';
-    note.textContent = `→ dùng ${totalDrones} drone cho ${byRoute[routeId].length} đơn hàng của route này.`;
+    note.textContent = `→ using ${totalDrones} drones for ${byRoute[routeId].length} orders on this route.`;
     block.appendChild(note);
 
     delay += 200;
