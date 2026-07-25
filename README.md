@@ -33,15 +33,15 @@
 9. The model output is energy consumption
 
 ## Folder Structure
-
- .
-├──  data
-│ ├──  processed
-│ └──  raw
-├──  eda
-│ └──  docs
-├── 󰣞 src
-│ ├──  config
-│ └──  utils
-└──  web
-
+```
+.
+├──  data
+│ ├──  processed
+│ └──  raw
+├──  eda
+│ └──  docs
+├──  src
+│ ├──  config
+│ └──  utils
+└── web
+```
