@@ -11,7 +11,7 @@ function rid(){ return 'r' + Math.random().toString(36).slice(2,9); }
 
 const PALETTE = ['#4fd1c5','#f5a623','#7c9cff','#e8615a','#8de65a','#ff9ecb','#c39bff','#5ad1e6'];
 const routeAssets = [
-  { src: 'Assets/R1.jpeg', title: 'Route R1' },
+  { src: 'Assets/R1_animation.gif', title: 'Route R1' },
   { src: 'Assets/R2_animation.gif', title: 'Route R2' },
   { src: 'Assets/R3_animation.gif', title: 'Route R3' },
   { src: 'Assets/R4_animation.gif', title: 'Route R4' },

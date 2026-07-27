@@ -1,95 +1,2812 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Drone fleet payload allocation simulator</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Battery-aware drone fleet planning and exploratory flight-data analysis.">
+  <title>Drone Fleet Planner</title>
+  <style>
+    html {
+      background: #0a0f14;
+    }
+
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 16px;
+      background: #0a0f14;
+    }
+
+    #drone-fleet-concept {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 0;
+      }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
+<div id="drone-fleet-concept">
+  <style>
+    #drone-fleet-concept {
+      --background: #0a0f14;
+      --foreground: #dce6ee;
+      --card: #10171f;
+      --card-foreground: #dce6ee;
+      --secondary: #141d27;
+      --secondary-foreground: #dce6ee;
+      --muted: #141d27;
+      --muted-foreground: #6f8494;
+      --primary: #4fd1c5;
+      --primary-foreground: #04211e;
+      --accent: rgba(79, 209, 197, 0.1);
+      --accent-foreground: #4fd1c5;
+      --destructive: #e8615a;
+      --border: #223140;
+      --input: #223140;
+      --ring: #4fd1c5;
+      --viz-series-1: #4fd1c5;
+      --viz-series-2: #f5a623;
+      --dfc-amber: #f5a623;
+      --dfc-panel-2: #141d27;
+      --dfc-r1: #4fd1c5;
+      --dfc-r2: #f5a623;
+      --dfc-r3: #8f9cff;
+      --dfc-r4: #e8615a;
+      --dfc-r5: #8fd163;
+      --dfc-r6: #c084fc;
+      --dfc-r7: #5bb7e8;
+      --dfc-mono: "JetBrains Mono", "Space Mono", ui-monospace, Consolas, monospace;
+      --dfc-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+      box-sizing: border-box;
+      background: var(--background);
+      color: var(--foreground);
+      display: grid;
+      gap: 1.4rem;
+      width: 100%;
+      min-height: 100%;
+      padding: 2rem;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      font-family: var(--dfc-sans);
+    }
 
-  <header>
-    <div class="eyebrow">Fleet Ops · Bin Packing Simulator</div>
-    <h1>Payload allocation for a fleet of <span>drones</span></h1>
-    <div class="sub">
-      Each route has a maximum drone payload limit (estimated from remaining battery energy).
-      Add orders per route and click <b>Start simulation</b> to see Best-Fit Decreasing assign packages to drones —
-      filling each close to capacity before opening the next one.
-    </div>
-  </header>
+    #drone-fleet-concept .dfc-topbar,
+    #drone-fleet-concept .dfc-tabs,
+    #drone-fleet-concept .dfc-insight,
+    #drone-fleet-concept .dfc-section-head,
+    #drone-fleet-concept .dfc-drone-head,
+    #drone-fleet-concept .dfc-caveats {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
 
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="main">Dashboard</button>
-    <button class="tab-btn" data-tab="route">Route</button>
+    #drone-fleet-concept .dfc-brand {
+      color: var(--primary);
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .viz-badge {
+      background: rgba(245, 166, 35, 0.08);
+      border: 1px solid rgba(245, 166, 35, 0.48);
+      color: var(--dfc-amber);
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-tabs {
+      justify-content: flex-start;
+      padding-bottom: 0.2rem;
+    }
+
+    #drone-fleet-concept .btn {
+      background: var(--dfc-panel-2);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      padding: 0.65rem 1rem;
+      text-transform: uppercase;
+      transition: border-color 150ms ease, color 150ms ease, filter 150ms ease;
+    }
+
+    #drone-fleet-concept .btn:hover,
+    #drone-fleet-concept .btn:focus-visible {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    #drone-fleet-concept .btn[aria-pressed="true"],
+    #drone-fleet-concept .btn[aria-selected="true"] {
+      background: rgba(79, 209, 197, 0.1);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    #drone-fleet-concept .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--primary-foreground);
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .btn-primary:hover,
+    #drone-fleet-concept .btn-primary:focus-visible {
+      color: var(--primary-foreground);
+      filter: brightness(1.08);
+    }
+
+    #drone-fleet-concept .dfc-insight {
+      align-items: flex-end;
+      padding: 1.4rem 0 0.15rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept [hidden] {
+      display: none !important;
+    }
+
+    #drone-fleet-concept .dfc-panel-stack {
+      display: grid;
+      gap: 1.4rem;
+    }
+
+    #drone-fleet-concept .dfc-insight-copy {
+      display: grid;
+      gap: 0.45rem;
+      max-width: 46rem;
+    }
+
+    #drone-fleet-concept .dfc-insight-copy h2,
+    #drone-fleet-concept .dfc-section-head h3,
+    #drone-fleet-concept .dfc-energy-panel h3 {
+      margin: 0;
+    }
+
+    #drone-fleet-concept .dfc-insight-copy h2 {
+      color: var(--foreground);
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    #drone-fleet-concept .text-muted {
+      color: var(--muted-foreground);
+    }
+
+    #drone-fleet-concept .text-destructive {
+      color: var(--destructive);
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .viz-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      box-shadow: none;
+      color: var(--card-foreground);
+      padding: 1.15rem 1.25rem;
+    }
+
+    #drone-fleet-concept .viz-stat {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    #drone-fleet-concept .viz-stat > .text-muted {
+      font-family: var(--dfc-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .viz-stat-value {
+      color: var(--primary);
+      font-family: var(--dfc-mono);
+      font-size: 1.65rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    #drone-fleet-concept .dfc-controls {
+      align-items: flex-end;
+      display: grid;
+      grid-template-columns: 1.35fr 1fr 0.8fr;
+      gap: 0.75rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      padding: 1rem 1.15rem;
+    }
+
+    #drone-fleet-concept .dfc-scenario-builder {
+      display: grid;
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .dfc-scenario-builder-head,
+    #drone-fleet-concept .dfc-scenario-fields,
+    #drone-fleet-concept .dfc-custom-fields,
+    #drone-fleet-concept .dfc-scenario-summary-head,
+    #drone-fleet-concept .dfc-algorithm-head {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    #drone-fleet-concept .dfc-scenario-builder-head,
+    #drone-fleet-concept .dfc-scenario-summary-head,
+    #drone-fleet-concept .dfc-algorithm-head {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+    }
+
+    #drone-fleet-concept .dfc-scenario-builder h2,
+    #drone-fleet-concept .dfc-scenario-summary h3,
+    #drone-fleet-concept .dfc-algorithm-head h3 {
+      margin: 0;
+    }
+
+    #drone-fleet-concept .dfc-scenario-builder h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .dfc-scenario-fields {
+      grid-template-columns: minmax(18rem, 1.35fr) minmax(12rem, 0.65fr) auto;
+      align-items: end;
+    }
+
+    #drone-fleet-concept .dfc-custom-fields {
+      grid-template-columns: minmax(14rem, 0.55fr) minmax(22rem, 1.45fr);
+      align-items: start;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-fleet-config {
+      display: grid;
+      grid-template-columns: minmax(12rem, 0.28fr) minmax(28rem, 1fr);
+      gap: 1rem;
+      align-items: start;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-fleet-capacity-wrap {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    #drone-fleet-concept .dfc-fleet-capacity-label {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-fleet-capacities {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+      gap: 0.65rem;
+    }
+
+    #drone-fleet-concept .dfc-fleet-capacity {
+      display: grid;
+      gap: 0.3rem;
+      min-width: 0;
+    }
+
+    #drone-fleet-concept .dfc-fleet-capacity .form-control {
+      font-family: var(--dfc-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    #drone-fleet-concept .dfc-fleet-help {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: 0.72rem;
+      line-height: 1.45;
+    }
+
+    #drone-fleet-concept .form-control {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--dfc-panel-2);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      color: var(--foreground);
+      font-family: var(--dfc-sans);
+      font-size: 0.82rem;
+      padding: 0.55rem 0.65rem;
+      outline: none;
+    }
+
+    #drone-fleet-concept textarea.form-control {
+      min-height: 7.5rem;
+      resize: vertical;
+      font-family: var(--dfc-mono);
+      line-height: 1.45;
+    }
+
+    #drone-fleet-concept .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(79, 209, 197, 0.12);
+    }
+
+    #drone-fleet-concept .dfc-scenario-validation {
+      margin: 0;
+      color: var(--destructive);
+      font-size: 0.78rem;
+    }
+
+    #drone-fleet-concept .dfc-scenario-summary {
+      display: grid;
+      gap: 0.9rem;
+      padding: 1.05rem 0 0.2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-scenario-summary h3,
+    #drone-fleet-concept .dfc-algorithm-head h3 {
+      color: var(--primary);
+      font-family: var(--dfc-mono);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-scenario-summary-grid {
+      display: grid;
+      grid-template-columns: minmax(20rem, 0.75fr) minmax(24rem, 1.25fr);
+      gap: 1.2rem;
+      align-items: center;
+    }
+
+    #drone-fleet-concept .dfc-scenario-facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+
+    #drone-fleet-concept .dfc-scenario-fact {
+      display: grid;
+      gap: 0.2rem;
+      padding-left: 0.7rem;
+      border-left: 2px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-scenario-fact span {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.64rem;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-scenario-fact strong {
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 1.15rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #drone-fleet-concept .dfc-route-mix {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    #drone-fleet-concept .dfc-route-mix-bar {
+      display: flex;
+      min-height: 2.25rem;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      background: var(--dfc-panel-2);
+    }
+
+    #drone-fleet-concept .dfc-route-mix-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      overflow: hidden;
+      color: var(--background);
+      font-family: var(--dfc-mono);
+      font-size: 0.65rem;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: width 220ms ease;
+    }
+
+    #drone-fleet-concept .dfc-route-mix-legend {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.66rem;
+    }
+
+    #drone-fleet-concept .dfc-algorithm-head {
+      padding-top: 0.5rem;
+    }
+
+    #drone-fleet-concept .dfc-run-status {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.66rem;
+    }
+
+    #drone-fleet-concept .dfc-control {
+      color: var(--muted-foreground);
+      display: grid;
+      gap: 0.4rem;
+      font-family: var(--dfc-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      min-width: 0;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .form-select {
+      width: 100%;
+      background: var(--dfc-panel-2);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      color: var(--foreground);
+      font-family: var(--dfc-sans);
+      font-size: 0.82rem;
+      min-height: 2.4rem;
+      padding: 0.5rem 0.65rem;
+      outline: none;
+    }
+
+    #drone-fleet-concept .form-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(79, 209, 197, 0.12);
+    }
+
+    #drone-fleet-concept .dfc-main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.7fr);
+      gap: 1rem;
+      align-items: start;
+    }
+
+    #drone-fleet-concept .dfc-section,
+    #drone-fleet-concept .dfc-energy-panel,
+    #drone-fleet-concept .dfc-allocation {
+      display: grid;
+      gap: 0.8rem;
+      min-width: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      padding: 1.15rem 1.25rem;
+    }
+
+    #drone-fleet-concept [data-dfc-allocation-content] {
+      display: grid;
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .dfc-section-head h3,
+    #drone-fleet-concept .dfc-energy-panel h3 {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-section-head > .text-muted {
+      font-family: var(--dfc-mono);
+      font-size: 0.65rem;
+    }
+
+    #drone-fleet-concept .table-responsive {
+      overflow-x: auto;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #drone-fleet-concept .dfc-matrix {
+      width: 100%;
+      border-collapse: collapse;
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+    }
+
+    #drone-fleet-concept .dfc-matrix td,
+    #drone-fleet-concept .dfc-matrix th {
+      border-bottom: 1px solid var(--border);
+      padding: 0.58rem 0.52rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #drone-fleet-concept .dfc-matrix thead th {
+      color: var(--muted-foreground);
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-matrix th:first-child,
+    #drone-fleet-concept .dfc-matrix td:first-child {
+      text-align: left;
+    }
+
+    #drone-fleet-concept .dfc-cell-good {
+      background: rgba(79, 209, 197, 0.08);
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    #drone-fleet-concept .dfc-cell-selected {
+      background: rgba(79, 209, 197, 0.18);
+      box-shadow: inset 0 0 0 2px var(--primary);
+      color: var(--foreground);
+      font-weight: 500;
+    }
+
+    #drone-fleet-concept .dfc-cell-none {
+      background: repeating-linear-gradient(
+        135deg,
+        transparent,
+        transparent 6px,
+        rgba(232, 97, 90, 0.08) 6px,
+        rgba(232, 97, 90, 0.08) 8px
+      );
+      color: var(--muted-foreground);
+    }
+
+    #drone-fleet-concept .dfc-energy-chart {
+      color: var(--muted-foreground);
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      background: var(--dfc-panel-2);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+    }
+
+    #drone-fleet-concept .dfc-axis,
+    #drone-fleet-concept .dfc-gridline {
+      stroke: currentColor;
+      stroke-width: 1;
+      fill: none;
+    }
+
+    #drone-fleet-concept .dfc-gridline {
+      opacity: 0.18;
+    }
+
+    #drone-fleet-concept .dfc-curve {
+      stroke: var(--primary);
+      stroke-width: 3;
+      fill: none;
+    }
+
+    #drone-fleet-concept .dfc-budget {
+      stroke: var(--dfc-amber);
+      stroke-width: 2;
+      stroke-dasharray: 6 5;
+    }
+
+    #drone-fleet-concept .dfc-guide {
+      stroke: var(--primary);
+      stroke-width: 1;
+      stroke-dasharray: 3 4;
+    }
+
+    #drone-fleet-concept .dfc-point {
+      fill: var(--primary);
+      stroke: var(--background);
+      stroke-width: 2;
+    }
+
+    #drone-fleet-concept .dfc-chart-label {
+      fill: var(--foreground);
+    }
+
+    #drone-fleet-concept .dfc-chart-muted {
+      fill: var(--muted-foreground);
+    }
+
+    #drone-fleet-concept .dfc-route-group {
+      display: grid;
+      gap: 0.75rem;
+      padding-top: 0.2rem;
+    }
+
+    #drone-fleet-concept .dfc-route-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--primary);
+      font-family: var(--dfc-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .dfc-route-title::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: var(--border);
+    }
+
+    #drone-fleet-concept .dfc-drone {
+      display: grid;
+      grid-template-columns: 5.5rem minmax(0, 1fr) 9rem;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    #drone-fleet-concept .dfc-drone-name,
+    #drone-fleet-concept .dfc-util {
+      font-family: var(--dfc-mono);
+      font-size: 0.7rem;
+    }
+
+    #drone-fleet-concept .dfc-drone-name {
+      color: var(--muted-foreground);
+    }
+
+    #drone-fleet-concept .dfc-bar {
+      display: flex;
+      min-height: 2.25rem;
+      background: var(--dfc-panel-2);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+    }
+
+    #drone-fleet-concept .dfc-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      padding-inline: 0.4rem;
+      color: #04211e;
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    #drone-fleet-concept .dfc-segment-a {
+      background: var(--primary);
+    }
+
+    #drone-fleet-concept .dfc-segment-b {
+      background: var(--dfc-amber);
+    }
+
+    #drone-fleet-concept .dfc-util {
+      color: var(--dfc-amber);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    #drone-fleet-concept .dfc-util-ok {
+      color: var(--primary);
+    }
+
+    #drone-fleet-concept .dfc-unassigned {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.85rem 0.95rem;
+      border: 1px dashed var(--destructive);
+      border-radius: 0.5rem;
+      background: rgba(232, 97, 90, 0.06);
+    }
+
+    #drone-fleet-concept .dfc-caveats {
+      justify-content: flex-start;
+      padding: 0.85rem 0.95rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.66rem;
+      letter-spacing: 0.02em;
+    }
+
+    #drone-fleet-concept .dfc-eda-header {
+      display: grid;
+      gap: 0.45rem;
+      padding: 1.4rem 0 0.2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-eda-header h2 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    #drone-fleet-concept .dfc-eda-group {
+      display: grid;
+      gap: 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.65rem;
+      padding: 1.15rem 1.25rem;
+    }
+
+    #drone-fleet-concept .dfc-eda-group-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #drone-fleet-concept .dfc-eda-group h3 {
+      margin: 0;
+      color: var(--primary);
+      font-family: var(--dfc-mono);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-cohort-controls {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+    }
+
+    #drone-fleet-concept .dfc-correlation-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.75fr);
+      gap: 1.35rem;
+      align-items: start;
+    }
+
+    #drone-fleet-concept .dfc-correlation-chart {
+      display: grid;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    #drone-fleet-concept .dfc-corr-axis {
+      display: grid;
+      grid-template-columns: minmax(8.75rem, 0.75fr) minmax(12rem, 1.5fr) 3.65rem;
+      gap: 0.75rem;
+      align-items: center;
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.64rem;
+    }
+
+    #drone-fleet-concept .dfc-corr-scale {
+      display: flex;
+      justify-content: space-between;
+      padding-inline: 0.15rem;
+    }
+
+    #drone-fleet-concept .dfc-corr-row {
+      display: grid;
+      grid-template-columns: minmax(8.75rem, 0.75fr) minmax(12rem, 1.5fr) 3.65rem;
+      gap: 0.75rem;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      padding: 0.42rem 0.5rem;
+      color: var(--foreground);
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 0.4rem;
+      cursor: pointer;
+    }
+
+    #drone-fleet-concept .dfc-corr-row:hover,
+    #drone-fleet-concept .dfc-corr-row[aria-pressed="true"] {
+      background: var(--accent);
+      border-color: var(--border);
+    }
+
+    #drone-fleet-concept .dfc-corr-label,
+    #drone-fleet-concept .dfc-corr-value {
+      font-family: var(--dfc-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .dfc-corr-value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #drone-fleet-concept .dfc-corr-track {
+      position: relative;
+      height: 0.72rem;
+      background:
+        linear-gradient(
+          to right,
+          transparent calc(50% - 0.5px),
+          var(--muted-foreground) calc(50% - 0.5px),
+          var(--muted-foreground) calc(50% + 0.5px),
+          transparent calc(50% + 0.5px)
+        );
+    }
+
+    #drone-fleet-concept .dfc-corr-track::before {
+      content: "";
+      position: absolute;
+      inset: 50% 0 auto;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-corr-bar {
+      position: absolute;
+      top: 0.08rem;
+      height: 0.56rem;
+      border-radius: 0.18rem;
+      transition: left 220ms ease, width 220ms ease, background-color 220ms ease;
+    }
+
+    #drone-fleet-concept .dfc-corr-bar.is-positive {
+      background: var(--primary);
+    }
+
+    #drone-fleet-concept .dfc-corr-bar.is-negative {
+      background: var(--dfc-amber);
+    }
+
+    #drone-fleet-concept .dfc-insight-detail {
+      display: grid;
+      gap: 0.8rem;
+      padding-left: 1rem;
+      border-left: 2px solid var(--primary);
+    }
+
+    #drone-fleet-concept .dfc-insight-detail strong {
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    #drone-fleet-concept .dfc-insight-detail p {
+      margin: 0;
+      color: var(--muted-foreground);
+      font-size: 0.82rem;
+    }
+
+    #drone-fleet-concept .dfc-finding-list {
+      display: grid;
+      gap: 0.65rem;
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted-foreground);
+      font-size: 0.78rem;
+    }
+
+    #drone-fleet-concept .dfc-finding-list strong {
+      color: var(--foreground);
+    }
+
+    #drone-fleet-concept .dfc-coverage {
+      display: grid;
+      gap: 0.7rem;
+      padding-top: 0.55rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-coverage-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #drone-fleet-concept .dfc-donut-layout {
+      display: grid;
+      grid-template-columns: minmax(14rem, 0.7fr) minmax(22rem, 1.3fr);
+      gap: 1.5rem;
+      align-items: center;
+    }
+
+    #drone-fleet-concept .dfc-route-donut {
+      position: relative;
+      width: min(100%, 16rem);
+      aspect-ratio: 1;
+      justify-self: center;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          var(--dfc-r1) 0% 92.8571%,
+          var(--dfc-r2) 92.8571% 93.3673%,
+          var(--dfc-r3) 93.3673% 93.8776%,
+          var(--dfc-r4) 93.8776% 94.3878%,
+          var(--dfc-r5) 94.3878% 96.4286%,
+          var(--dfc-r6) 96.4286% 98.9796%,
+          var(--dfc-r7) 98.9796% 100%
+        );
+    }
+
+    #drone-fleet-concept .dfc-route-donut::after {
+      content: "";
+      position: absolute;
+      inset: 21%;
+      border-radius: 50%;
+      background: var(--card);
+    }
+
+    #drone-fleet-concept .dfc-donut-center {
+      position: absolute;
+      inset: 25%;
+      z-index: 1;
+      display: grid;
+      place-content: center;
+      text-align: center;
+    }
+
+    #drone-fleet-concept .dfc-donut-center strong {
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    #drone-fleet-concept .dfc-donut-center span {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.64rem;
+    }
+
+    #drone-fleet-concept .dfc-donut-legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.55rem 1rem;
+    }
+
+    #drone-fleet-concept .dfc-donut-item {
+      display: grid;
+      grid-template-columns: 0.75rem minmax(2.5rem, 1fr) auto;
+      gap: 0.55rem;
+      align-items: center;
+      min-width: 0;
+      padding-block: 0.38rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+    }
+
+    #drone-fleet-concept .dfc-donut-swatch {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 0.16rem;
+      background: var(--route-color);
+    }
+
+    #drone-fleet-concept .dfc-donut-value {
+      display: flex;
+      gap: 0.45rem;
+      justify-content: flex-end;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #drone-fleet-concept .dfc-donut-value small {
+      color: var(--muted-foreground);
+      font-size: inherit;
+      font-weight: 500;
+    }
+
+    #drone-fleet-concept .dfc-multi-select {
+      display: flex;
+      gap: 0.55rem 0.75rem;
+      flex-wrap: wrap;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    #drone-fleet-concept .form-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      min-height: 2rem;
+      padding: 0.3rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      background: var(--dfc-panel-2);
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+
+    #drone-fleet-concept .form-check:has(.form-check-input:checked) {
+      border-color: var(--primary);
+      background: var(--accent);
+      color: var(--primary);
+    }
+
+    #drone-fleet-concept .form-check-input {
+      margin: 0;
+      accent-color: var(--primary);
+    }
+
+    #drone-fleet-concept .dfc-selection-summary {
+      color: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.68rem;
+      white-space: nowrap;
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="1"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="2"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="3"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="4"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="5"],
+    #drone-fleet-concept .dfc-selectable-grid[data-count="6"],
+    #drone-fleet-concept .dfc-selectable-grid[data-count="7"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-selectable-grid[data-count="1"] .dfc-figure-card img {
+      aspect-ratio: 16 / 8.5;
+      max-height: 44rem;
+    }
+
+    #drone-fleet-concept .dfc-empty-selection {
+      padding: 1rem;
+      border: 1px dashed var(--border);
+      border-radius: 0.45rem;
+      color: var(--muted-foreground);
+      text-align: center;
+    }
+
+    #drone-fleet-concept .dfc-profile-controls {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    #drone-fleet-concept .dfc-profile-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .dfc-profile-chart {
+      display: grid;
+      gap: 0.45rem;
+      min-width: 0;
+      margin: 0;
+    }
+
+    #drone-fleet-concept .dfc-profile-chart figcaption {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      color: var(--foreground);
+      overflow: visible;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-gridline,
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-axis {
+      stroke: var(--border);
+      stroke-width: 1;
+      vector-effect: non-scaling-stroke;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-label {
+      fill: var(--muted-foreground);
+      font-family: var(--dfc-mono);
+      font-size: 10px;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-annotation {
+      fill: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-area {
+      opacity: 0.16;
+    }
+
+    #drone-fleet-concept .dfc-profile-svg .dfc-profile-line {
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    #drone-fleet-concept .dfc-profile-summary {
+      min-height: 2.5rem;
+      padding-left: 0.85rem;
+      border-left: 2px solid var(--primary);
+      color: var(--muted-foreground);
+      font-size: 0.8rem;
+    }
+
+    #drone-fleet-concept .dfc-profile-context {
+      display: grid;
+      gap: 0.75rem;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--border);
+    }
+
+    #drone-fleet-concept .dfc-figure-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    #drone-fleet-concept .dfc-route-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-notebook-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #drone-fleet-concept .dfc-figure-card {
+      display: grid;
+      align-content: start;
+      gap: 0.65rem;
+      min-width: 0;
+      margin: 0;
+      overflow: hidden;
+      background: var(--dfc-panel-2);
+      border: 1px solid var(--border);
+      border-radius: 0.55rem;
+    }
+
+    #drone-fleet-concept .dfc-figure-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 7 / 5;
+      object-fit: contain;
+      background: #f7f9fb;
+    }
+
+    #drone-fleet-concept .dfc-figure-card figcaption {
+      display: grid;
+      gap: 0.28rem;
+      padding: 0 0.85rem 0.8rem;
+    }
+
+    #drone-fleet-concept .dfc-figure-title {
+      color: var(--foreground);
+      font-family: var(--dfc-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    #drone-fleet-concept .dfc-figure-note {
+      color: var(--muted-foreground);
+      font-size: 0.76rem;
+    }
+
+    @media (min-width: 1180px) {
+      #drone-fleet-concept {
+        gap: 1.6rem;
+        padding: 2.25rem 2.5rem;
+      }
+
+      #drone-fleet-concept .dfc-panel-stack {
+        gap: 1.6rem;
+      }
+
+      #drone-fleet-concept .dfc-main-grid {
+        grid-template-columns: minmax(0, 1.65fr) minmax(22rem, 0.65fr);
+        gap: 1.25rem;
+      }
+
+      #drone-fleet-concept .dfc-correlation-layout {
+        grid-template-columns: minmax(0, 1.7fr) minmax(20rem, 0.65fr);
+        gap: 1.75rem;
+      }
+
+      #drone-fleet-concept .dfc-eda-group {
+        padding: 1.3rem 1.5rem;
+      }
+
+      #drone-fleet-concept .dfc-eda-header h2 {
+        font-size: 2rem;
+      }
+
+      #drone-fleet-concept .dfc-route-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      #drone-fleet-concept .dfc-notebook-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      #drone-fleet-concept .dfc-selectable-grid[data-count="7"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      #drone-fleet-concept .dfc-main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .viz-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-controls {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-scenario-fields,
+      #drone-fleet-concept .dfc-custom-fields,
+      #drone-fleet-concept .dfc-fleet-config,
+      #drone-fleet-concept .dfc-scenario-summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-correlation-layout {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-profile-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-donut-layout {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-route-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #drone-fleet-concept .dfc-selectable-grid[data-count="3"],
+      #drone-fleet-concept .dfc-selectable-grid[data-count="5"],
+      #drone-fleet-concept .dfc-selectable-grid[data-count="6"],
+      #drone-fleet-concept .dfc-selectable-grid[data-count="7"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #drone-fleet-concept .dfc-drone {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+      }
+
+      #drone-fleet-concept .dfc-util {
+        text-align: left;
+      }
+
+    }
+
+    @media (max-width: 520px) {
+      #drone-fleet-concept {
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: 0;
+      }
+
+      #drone-fleet-concept .dfc-insight-copy h2 {
+        font-size: 1.4rem;
+      }
+
+      #drone-fleet-concept .dfc-eda-header h2 {
+        font-size: 1.4rem;
+      }
+
+      #drone-fleet-concept .dfc-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      #drone-fleet-concept .dfc-tabs .btn {
+        padding-inline: 0.45rem;
+      }
+
+      #drone-fleet-concept .dfc-insight .btn-primary,
+      #drone-fleet-concept .dfc-unassigned .btn,
+      #drone-fleet-concept .dfc-scenario-fields .btn-primary {
+        width: 100%;
+      }
+
+      #drone-fleet-concept .dfc-scenario-builder-head,
+      #drone-fleet-concept .dfc-scenario-summary-head,
+      #drone-fleet-concept .dfc-algorithm-head {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-scenario-facts {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-section,
+      #drone-fleet-concept .dfc-energy-panel,
+      #drone-fleet-concept .dfc-allocation {
+        padding: 0.95rem;
+      }
+
+      #drone-fleet-concept .dfc-eda-group {
+        padding: 0.95rem;
+      }
+
+      #drone-fleet-concept .dfc-corr-axis,
+      #drone-fleet-concept .dfc-corr-row {
+        grid-template-columns: minmax(7.25rem, 0.8fr) minmax(8rem, 1.2fr) 3.2rem;
+        gap: 0.45rem;
+      }
+
+      #drone-fleet-concept .dfc-corr-label,
+      #drone-fleet-concept .dfc-corr-value {
+        font-size: 0.64rem;
+      }
+
+      #drone-fleet-concept .dfc-figure-grid,
+      #drone-fleet-concept .dfc-route-grid,
+      #drone-fleet-concept .dfc-notebook-grid,
+      #drone-fleet-concept .dfc-selectable-grid[data-count] {
+        grid-template-columns: 1fr;
+      }
+
+      #drone-fleet-concept .dfc-route-donut {
+        width: min(100%, 13rem);
+      }
+
+      #drone-fleet-concept .dfc-donut-legend {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="dfc-topbar">
+    <div class="dfc-brand">Fleet Ops · Battery-Aware Allocation</div>
+    <span class="viz-badge">Simulated inputs</span>
   </div>
 
-  <div id="main-tab">
-    <!-- ROUTE CONFIG -->
-    <div class="panel">
-      <h2><span class="n">1</span>Set max payload per route</h2>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:45%">Route</th>
-            <th style="width:35%">Max payload / drone (kg)</th>
-            <th style="width:20%"></th>
-          </tr>
-        </thead>
-        <tbody id="route-tbody"></tbody>
-      </table>
-      <button class="btn btn-add" id="add-route-btn">+ Add route</button>
+  <nav class="dfc-tabs" role="tablist" aria-label="Fleet planning sections">
+    <button class="btn" id="dfc-tab-dashboard" type="button" role="tab" aria-selected="true" aria-controls="dfc-panel-dashboard" data-dfc-tab="dashboard">Fleet Planner</button>
+    <button class="btn btn-ghost" id="dfc-tab-eda" type="button" role="tab" aria-selected="false" aria-controls="dfc-panel-eda" data-dfc-tab="eda">EDA</button>
+  </nav>
+
+  <section id="dfc-panel-dashboard" class="dfc-panel-stack" role="tabpanel" aria-labelledby="dfc-tab-dashboard" data-dfc-panel="dashboard">
+  <section class="card dfc-scenario-builder" aria-labelledby="dfc-scenario-builder-title">
+    <div class="dfc-scenario-builder-head">
+      <div>
+        <div class="dfc-brand">Scenario workspace</div>
+        <h2 id="dfc-scenario-builder-title">Choose a preset or provide custom orders</h2>
+      </div>
+      <span class="text-muted text-small">Input first · algorithm results update after Run Scenario</span>
     </div>
 
-    <!-- PACKAGE INPUT -->
-    <div class="panel">
-      <h2><span class="n">2</span>Add orders</h2>
-      <div class="pkg-form">
-        <div class="field">
-          <label>Route</label>
-          <select id="pkg-route"></select>
+    <div class="dfc-scenario-fields">
+      <label class="form-label dfc-control" for="dfc-scenario-select">
+        Scenario
+        <select class="form-select" id="dfc-scenario-select">
+          <option value="morning">Morning deliveries · 10 orders</option>
+          <option value="afternoon">Afternoon mixed routes · 8 orders</option>
+          <option value="wind">Wind-constrained service · 7 orders</option>
+          <option value="peak">Peak demand · 14 orders</option>
+          <option value="custom">Custom data</option>
+        </select>
+      </label>
+      <label class="form-label dfc-control" for="dfc-safety-margin">
+        Usable battery
+        <select class="form-select" id="dfc-safety-margin">
+          <option value="0.70">70%</option>
+          <option value="0.75">75%</option>
+          <option value="0.80">80%</option>
+          <option value="0.85" selected>85%</option>
+          <option value="0.90">90%</option>
+        </select>
+      </label>
+      <button class="btn btn-primary" id="dfc-run-scenario" type="button">Run Scenario</button>
+    </div>
+
+    <div class="dfc-custom-fields" data-dfc-custom-fields hidden>
+      <label class="form-label dfc-control" for="dfc-custom-name">
+        Custom scenario name
+        <input class="form-control" id="dfc-custom-name" type="text" value="Custom delivery plan">
+      </label>
+      <label class="form-label dfc-control" for="dfc-custom-orders">
+        Orders · one <code>route,payload_kg</code> per line
+        <textarea class="form-control" id="dfc-custom-orders" spellcheck="false">R1,2.4
+R1,1.8
+R5,1.2
+R7,3.1</textarea>
+      </label>
+    </div>
+
+    <div class="dfc-fleet-config" aria-labelledby="dfc-fleet-config-title">
+      <label class="form-label dfc-control" for="dfc-drone-count">
+        <span id="dfc-fleet-config-title">Number of drones</span>
+        <input class="form-control" id="dfc-drone-count" type="number" min="1" max="12" step="1" value="5" inputmode="numeric">
+      </label>
+      <div class="dfc-fleet-capacity-wrap">
+        <div class="dfc-fleet-capacity-label">Battery capacity per drone · Wh</div>
+        <div class="dfc-fleet-capacities" data-dfc-fleet-capacities></div>
+        <p class="dfc-fleet-help">Each drone may have a different battery. Capacity is combined with the usable-battery percentage when checking route feasibility.</p>
+      </div>
+    </div>
+    <p class="dfc-scenario-validation" data-dfc-scenario-validation role="alert" hidden></p>
+  </section>
+
+  <section class="dfc-insight" aria-labelledby="dfc-insight-title">
+    <div class="dfc-insight-copy">
+      <h2 id="dfc-insight-title" data-dfc-dashboard-title>10 orders need 5 drones; 1 order needs attention</h2>
+      <div class="text-muted" data-dfc-dashboard-subtitle>Morning deliveries · 85% usable battery · Updated after allocation</div>
+    </div>
+  </section>
+
+  <section class="dfc-scenario-summary" aria-labelledby="dfc-scenario-summary-title">
+    <div class="dfc-scenario-summary-head">
+      <h3 id="dfc-scenario-summary-title">Scenario input summary</h3>
+      <span class="text-muted" data-dfc-scenario-description>Morning multi-route deliveries with one intentionally oversized R2 order.</span>
+    </div>
+    <div class="dfc-scenario-summary-grid">
+      <div class="dfc-scenario-facts">
+        <div class="dfc-scenario-fact">
+          <span>Orders</span>
+          <strong data-dfc-input-orders>10</strong>
         </div>
-        <div class="field">
-          <label>Weight (kg)</label>
-          <input type="number" id="pkg-kg" min="0.1" step="0.1" placeholder="e.g. 2.5">
+        <div class="dfc-scenario-fact">
+          <span>Total payload</span>
+          <strong data-dfc-input-payload>19.1 kg</strong>
         </div>
-        <button class="btn" id="add-pkg-btn">+ Add order</button>
+        <div class="dfc-scenario-fact">
+          <span>Average payload</span>
+          <strong data-dfc-input-average>1.91 kg</strong>
+        </div>
+        <div class="dfc-scenario-fact">
+          <span>Fleet</span>
+          <strong data-dfc-input-fleet>5 · 22–26 Wh</strong>
+        </div>
       </div>
-      <div class="pkg-list" id="pkg-list">
-        <span class="empty-note">No orders yet — add at least one order to run the simulation.</span>
+      <div class="dfc-route-mix">
+        <div class="dfc-route-mix-bar" data-dfc-route-mix-bar role="img" aria-label="Order count by route"></div>
+        <div class="dfc-route-mix-legend" data-dfc-route-mix-legend>R1 · 4 orders · R2 · 4 orders · R7 · 2 orders</div>
       </div>
     </div>
+  </section>
 
-    <div class="actions-row">
-      <div class="hint" id="pkg-count-hint">0 orders waiting to be allocated</div>
-      <button class="btn btn-primary" id="run-btn" disabled>▶ Start simulation</button>
+  <div class="dfc-algorithm-head">
+    <h3>Algorithm results</h3>
+    <span class="dfc-run-status" data-dfc-run-status>Greedy best-fit allocation · 5-drone fleet</span>
+  </div>
+
+  <div class="viz-grid" aria-label="Allocation summary" data-dfc-result-summary>
+    <div class="card viz-stat">
+      <div class="text-muted">Drones required</div>
+      <div class="viz-stat-value" data-dfc-result-drones>5</div>
+      <div data-dfc-result-routes>Across R1, R2 and R7</div>
     </div>
-
-    <!-- SIMULATION OUTPUT -->
-    <div class="panel" id="sim-output">
-      <h2><span class="n">3</span>Simulation results</h2>
-      <div id="routes-container"></div>
+    <div class="card viz-stat">
+      <div class="text-muted">Orders assigned</div>
+      <div class="viz-stat-value" data-dfc-result-orders>9 / 10</div>
+      <div data-dfc-result-rate>90% assignment rate</div>
+    </div>
+    <div class="card viz-stat">
+      <div class="text-muted">Fleet utilization</div>
+      <div class="viz-stat-value" data-dfc-result-utilization>81%</div>
+      <div data-dfc-result-remaining>3.9 kg capacity remains</div>
     </div>
   </div>
 
-  <div id="route-tab" class="panel hidden">
-    <h2>Route animations</h2>
-    <div class="sub">Preview route animations.</div>
-    <div id="route-gallery" class="route-grid"></div>
-
-    <div id="image-modal" class="image-modal hidden">
-      <div class="image-modal-backdrop" id="image-modal-backdrop"></div>
-      <div class="image-modal-content">
-        <button class="modal-close" id="image-modal-close">×</button>
-        <img id="image-modal-img" src="" alt="Route preview">
-        <div id="image-modal-title" class="route-card-title"></div>
+  <div class="dfc-main-grid">
+    <section class="dfc-section" aria-labelledby="dfc-matrix-title">
+      <div class="dfc-section-head">
+        <h3 id="dfc-matrix-title">Drone–route feasibility</h3>
+        <span class="text-muted">Maximum payload, kg</span>
       </div>
-    </div>
+      <div class="table-responsive">
+        <table class="table table-sm dfc-matrix">
+          <thead>
+            <tr>
+              <th scope="col">Drone</th>
+              <th scope="col">Battery</th>
+              <th scope="col">R1</th>
+              <th scope="col">R2</th>
+              <th scope="col">R3</th>
+              <th scope="col">R4</th>
+              <th scope="col">R5</th>
+              <th scope="col">R6</th>
+              <th scope="col">R7</th>
+            </tr>
+          </thead>
+          <tbody data-dfc-matrix-body></tbody>
+        </table>
+      </div>
+      <div class="text-muted">— means the route is not feasible with the available battery.</div>
+    </section>
+
+    <section class="dfc-energy-panel" aria-labelledby="dfc-energy-title">
+      <div>
+        <h3 id="dfc-energy-title" data-dfc-energy-title>Why 5.00 kg is feasible</h3>
+        <div class="text-muted" data-dfc-energy-subtitle>Drone 3 · Route R1 · deterministic energy estimate</div>
+      </div>
+      <svg class="dfc-energy-chart" data-dfc-energy-chart viewBox="0 0 420 230" role="img" aria-label="Estimated energy by payload for the selected allocation"></svg>
+      <div class="text-muted" data-dfc-energy-note>The feasible point stays below the usable-energy budget.</div>
+    </section>
   </div>
 
-  <footer>best-fit decreasing · drone payload allocator</footer>
+  <section class="dfc-allocation" aria-labelledby="dfc-allocation-title">
+    <div class="dfc-section-head">
+      <h3 id="dfc-allocation-title">Recommended allocation</h3>
+      <span class="text-muted">Order IDs remain visible without hover</span>
+    </div>
+
+    <div data-dfc-allocation-content>
+    <div class="dfc-route-group">
+      <div class="dfc-route-title">Route R1</div>
+      <div class="dfc-drone">
+        <div class="dfc-drone-name">Drone 3</div>
+        <div class="dfc-bar" aria-label="Drone 3 carries order 3 at 2.7 kilograms and order 8 at 2 kilograms">
+          <div class="dfc-segment dfc-segment-a" style="width:54%">O03 · 2.7</div>
+          <div class="dfc-segment dfc-segment-b" style="width:40%">O08 · 2.0</div>
+        </div>
+        <div class="dfc-util dfc-util-ok">4.7 / 4.99 kg · 94%</div>
+      </div>
+      <div class="dfc-drone">
+        <div class="dfc-drone-name">Drone 4</div>
+        <div class="dfc-bar" aria-label="Drone 4 carries order 2 at 2.2 kilograms and order 6 at 1.5 kilograms">
+          <div class="dfc-segment dfc-segment-a" style="width:44%">O02 · 2.2</div>
+          <div class="dfc-segment dfc-segment-b" style="width:30%">O06 · 1.5</div>
+        </div>
+        <div class="dfc-util">3.7 / 4.99 kg · 74%</div>
+      </div>
+    </div>
+
+    <div class="dfc-route-group">
+      <div class="dfc-route-title">Route R7</div>
+      <div class="dfc-drone">
+        <div class="dfc-drone-name">Drone 1</div>
+        <div class="dfc-bar" aria-label="Drone 1 carries order 4 at 2 kilograms and order 9 at 1.5 kilograms">
+          <div class="dfc-segment dfc-segment-a" style="width:40%">O04 · 2.0</div>
+          <div class="dfc-segment dfc-segment-b" style="width:30%">O09 · 1.5</div>
+        </div>
+        <div class="dfc-util">3.5 / 4.99 kg · 70%</div>
+      </div>
+    </div>
+
+    <div class="dfc-unassigned">
+      <div>
+        <div class="text-destructive">Order O10 cannot be assigned</div>
+        <div class="text-muted">5.4 kg exceeds every feasible drone limit on Route R2.</div>
+      </div>
+      <button class="btn" type="button">Review order</button>
+    </div>
+    </div>
+  </section>
+
+  <div class="dfc-caveats text-small" aria-label="Model and data caveats">
+    <span>Model RMSE: 1.366 Wh</span>
+    <span>•</span>
+    <span>R1: 182 flights</span>
+    <span>•</span>
+    <span>R2–R7: 14 flights total</span>
+    <span>•</span>
+    <span>Operational validation required</span>
+  </div>
+  </section>
+
+  <section id="dfc-panel-eda" class="dfc-panel-stack" role="tabpanel" aria-labelledby="dfc-tab-eda" data-dfc-panel="eda" hidden>
+    <header class="dfc-eda-header">
+      <div class="dfc-brand">Exploratory Data Analysis · Flight Evidence</div>
+      <h2>How route, wind and flight dynamics shape energy use</h2>
+      <div class="text-muted">Flight-level evidence from the processed dataset, R1–R7 trajectories and the EDA notebook.</div>
+    </header>
+
+    <section class="dfc-eda-group" aria-labelledby="dfc-eda-insights-title">
+      <div class="dfc-eda-group-head">
+        <h3 id="dfc-eda-insights-title">01 · What changes energy consumption</h3>
+        <span class="text-muted">Pearson correlation · click a driver for interpretation</span>
+      </div>
+
+      <div class="dfc-cohort-controls" aria-label="Choose analysis cohort">
+        <button class="btn" type="button" aria-pressed="true" data-dfc-cohort="missions">R1–R7 missions · n=196</button>
+        <button class="btn btn-ghost" type="button" aria-pressed="false" data-dfc-cohort="all">All processed records · n=209</button>
+      </div>
+
+      <div class="dfc-correlation-layout">
+        <div class="dfc-correlation-chart" role="group" aria-label="Correlation with energy consumed in watt-hours">
+          <div class="dfc-corr-axis" aria-hidden="true">
+            <span>Driver</span>
+            <span class="dfc-corr-scale"><span>−1</span><span>0</span><span>+1</span></span>
+            <span style="text-align:right">r</span>
+          </div>
+          <button class="dfc-corr-row" type="button" aria-pressed="true" data-dfc-driver="duration">
+            <span class="dfc-corr-label">Flight duration</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-positive" style="left:50%;width:40.7%"></span></span>
+            <span class="dfc-corr-value">+0.814</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="accelerationMean">
+            <span class="dfc-corr-label">Mean acceleration</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-negative" style="left:15.0%;width:35.0%"></span></span>
+            <span class="dfc-corr-value">−0.700</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="groundSpeed">
+            <span class="dfc-corr-label">Ground speed</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-negative" style="left:20.0%;width:30.0%"></span></span>
+            <span class="dfc-corr-value">−0.600</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="height">
+            <span class="dfc-corr-label">Maximum height</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-positive" style="left:50%;width:28.3%"></span></span>
+            <span class="dfc-corr-value">+0.566</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="distance">
+            <span class="dfc-corr-label">Flight distance</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-positive" style="left:50%;width:26.6%"></span></span>
+            <span class="dfc-corr-value">+0.532</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="accelerationStd">
+            <span class="dfc-corr-label">Acceleration variability</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-negative" style="left:29.7%;width:20.3%"></span></span>
+            <span class="dfc-corr-value">−0.407</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="payload">
+            <span class="dfc-corr-label">Payload</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-positive" style="left:50%;width:16.9%"></span></span>
+            <span class="dfc-corr-value">+0.338</span>
+          </button>
+          <button class="dfc-corr-row" type="button" aria-pressed="false" data-dfc-driver="wind">
+            <span class="dfc-corr-label">Mean wind speed</span>
+            <span class="dfc-corr-track"><span class="dfc-corr-bar is-negative" style="left:39.5%;width:10.5%"></span></span>
+            <span class="dfc-corr-value">−0.210</span>
+          </button>
+        </div>
+
+        <aside class="dfc-insight-detail" aria-live="polite">
+          <strong data-dfc-insight-title>Duration is the dominant signal</strong>
+          <p data-dfc-insight-copy>Longer operational missions consume more energy (r = +0.814). This relationship is stronger than distance alone.</p>
+          <ul class="dfc-finding-list">
+            <li><strong>Payload effect:</strong> mean energy rises from 19.15 Wh at 0 g to 23.08 Wh at 500 g; partial r = +0.590 after controlling for duration.</li>
+            <li><strong>Cohort reversal:</strong> wind, speed and acceleration variability change direction when 13 non-mission records are included.</li>
+            <li><strong>Interpretation:</strong> correlation describes association, not an isolated causal effect.</li>
+          </ul>
+        </aside>
+      </div>
+
+      <div class="dfc-coverage" aria-labelledby="dfc-route-coverage-title">
+        <div class="dfc-coverage-head">
+          <span class="dfc-figure-title" id="dfc-route-coverage-title">Route sample coverage</span>
+          <span class="text-muted text-small">Share of 196 complete R1–R7 missions</span>
+        </div>
+        <div class="dfc-donut-layout">
+          <div class="dfc-route-donut" role="img" aria-label="Donut chart of 196 mission flights: R1 182, R2 1, R3 1, R4 1, R5 4, R6 5, R7 2">
+            <div class="dfc-donut-center">
+              <strong>196</strong>
+              <span>mission flights</span>
+            </div>
+          </div>
+          <div class="dfc-donut-legend" role="list" aria-label="Route colors, counts and percentages">
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r1)"></span>
+              <strong>R1</strong>
+              <span class="dfc-donut-value"><strong>182</strong><small>92.9%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r2)"></span>
+              <strong>R2</strong>
+              <span class="dfc-donut-value"><strong>1</strong><small>0.5%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r3)"></span>
+              <strong>R3</strong>
+              <span class="dfc-donut-value"><strong>1</strong><small>0.5%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r4)"></span>
+              <strong>R4</strong>
+              <span class="dfc-donut-value"><strong>1</strong><small>0.5%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r5)"></span>
+              <strong>R5</strong>
+              <span class="dfc-donut-value"><strong>4</strong><small>2.0%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r6)"></span>
+              <strong>R6</strong>
+              <span class="dfc-donut-value"><strong>5</strong><small>2.6%</small></span>
+            </div>
+            <div class="dfc-donut-item" role="listitem">
+              <span class="dfc-donut-swatch" style="--route-color:var(--dfc-r7)"></span>
+              <strong>R7</strong>
+              <span class="dfc-donut-value"><strong>2</strong><small>1.0%</small></span>
+            </div>
+          </div>
+        </div>
+        <span class="text-muted text-small">The donut excludes 13 A1, A2, A3 and H calibration / hover records so every color maps to one mission route.</span>
+      </div>
+    </section>
+
+    <section class="dfc-eda-group" aria-labelledby="dfc-eda-environment-title">
+      <div class="dfc-eda-group-head">
+        <h3 id="dfc-eda-environment-title">02 · Flight profile</h3>
+        <span class="text-muted">Altitude and actual ground-speed profile</span>
+      </div>
+
+      <div class="dfc-profile-controls">
+        <label class="form-label" for="dfc-profile-route">
+          Route
+          <select class="form-select" id="dfc-profile-route">
+            <option value="R1">R1 · 182 flights</option>
+            <option value="R2">R2 · 1 flight</option>
+            <option value="R3">R3 · 1 flight</option>
+            <option value="R4">R4 · 1 flight</option>
+            <option value="R5">R5 · 4 flights</option>
+            <option value="R6">R6 · 5 flights</option>
+            <option value="R7">R7 · 2 flights</option>
+          </select>
+        </label>
+        <span class="text-muted text-small">Median profile · shaded band = middle 50% of flights</span>
+      </div>
+
+      <div class="dfc-profile-grid">
+        <figure class="dfc-profile-chart">
+          <figcaption>
+            <span class="dfc-figure-title">Altitude above takeoff</span>
+            <span class="dfc-figure-note">meters AGL</span>
+          </figcaption>
+          <svg class="dfc-profile-svg" data-dfc-profile-chart="altitude" viewBox="0 0 520 260" role="img" aria-label="Altitude above ground by normalized flight progress"></svg>
+        </figure>
+        <figure class="dfc-profile-chart">
+          <figcaption>
+            <span class="dfc-figure-title">Actual velocity magnitude</span>
+            <span class="dfc-figure-note">meters per second</span>
+          </figcaption>
+          <svg class="dfc-profile-svg" data-dfc-profile-chart="speed" viewBox="0 0 520 260" role="img" aria-label="Actual speed by normalized flight progress"></svg>
+        </figure>
+      </div>
+
+      <div class="dfc-profile-summary" data-dfc-profile-summary aria-live="polite"></div>
+
+      <div class="dfc-profile-context">
+        <div class="dfc-eda-group-head">
+          <h3>Wind & movement context</h3>
+          <span class="text-muted">Supporting evidence retained from the original EDA</span>
+        </div>
+        <div class="dfc-figure-grid">
+          <figure class="dfc-figure-card">
+            <img src="Assets/eda_wind_components.png" alt="Wind component patterns across complete R1 to R7 missions" loading="lazy">
+            <figcaption>
+              <span class="dfc-figure-title">Wind components across flight progress</span>
+              <span class="dfc-figure-note">Mean east–west and north–south wind components, including route-level vectors.</span>
+            </figcaption>
+          </figure>
+          <figure class="dfc-figure-card">
+            <img src="Assets/eda_horizontal_flight_tendency.png" alt="Horizontal and vertical flight tendency by route" loading="lazy">
+            <figcaption>
+              <span class="dfc-figure-title">Horizontal flight tendency</span>
+              <span class="dfc-figure-note">Comparison of horizontal and vertical motion with horizontal-dominant flight duration.</span>
+            </figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="dfc-eda-group" aria-labelledby="dfc-eda-routes-title">
+      <div class="dfc-eda-group-head">
+        <h3 id="dfc-eda-routes-title">03 · R1–R7 3D flight process</h3>
+        <span class="text-muted">Choose one or more routes · layout adapts automatically</span>
+      </div>
+
+      <div class="dfc-profile-controls">
+        <fieldset class="dfc-multi-select" data-dfc-selector="routes">
+          <legend class="sr-only">Choose 3D route figures</legend>
+          <label class="form-check" for="dfc-route-r1">
+            <input class="form-check-input" id="dfc-route-r1" type="checkbox" value="R1" checked>
+            <span>R1</span>
+          </label>
+          <label class="form-check" for="dfc-route-r2">
+            <input class="form-check-input" id="dfc-route-r2" type="checkbox" value="R2">
+            <span>R2</span>
+          </label>
+          <label class="form-check" for="dfc-route-r3">
+            <input class="form-check-input" id="dfc-route-r3" type="checkbox" value="R3">
+            <span>R3</span>
+          </label>
+          <label class="form-check" for="dfc-route-r4">
+            <input class="form-check-input" id="dfc-route-r4" type="checkbox" value="R4">
+            <span>R4</span>
+          </label>
+          <label class="form-check" for="dfc-route-r5">
+            <input class="form-check-input" id="dfc-route-r5" type="checkbox" value="R5">
+            <span>R5</span>
+          </label>
+          <label class="form-check" for="dfc-route-r6">
+            <input class="form-check-input" id="dfc-route-r6" type="checkbox" value="R6">
+            <span>R6</span>
+          </label>
+          <label class="form-check" for="dfc-route-r7">
+            <input class="form-check-input" id="dfc-route-r7" type="checkbox" value="R7">
+            <span>R7</span>
+          </label>
+        </fieldset>
+        <span class="dfc-selection-summary" data-dfc-selection-summary="routes" aria-live="polite">1 route selected</span>
+      </div>
+
+      <div class="dfc-selectable-grid" data-dfc-selectable-grid="routes" data-count="1">
+        <figure class="dfc-figure-card" data-dfc-choice-card="R1">
+          <img src="Assets/R1_animation.gif" alt="Animated three-dimensional flight trajectory for Route R1" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R1</span><span class="dfc-figure-note">Primary route with the largest historical sample.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R2" hidden>
+          <img src="Assets/R2_animation.gif" alt="Animated three-dimensional flight trajectory for Route R2" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R2</span><span class="dfc-figure-note">3D trajectory from takeoff to landing.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R3" hidden>
+          <img src="Assets/R3_animation.gif" alt="Animated three-dimensional flight trajectory for Route R3" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R3</span><span class="dfc-figure-note">3D trajectory from takeoff to landing.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R4" hidden>
+          <img src="Assets/R4_animation.gif" alt="Animated three-dimensional flight trajectory for Route R4" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R4</span><span class="dfc-figure-note">3D trajectory from takeoff to landing.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R5" hidden>
+          <img src="Assets/R5_animation.gif" alt="Animated three-dimensional flight trajectory for Route R5" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R5</span><span class="dfc-figure-note">3D trajectory from takeoff to landing.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R6" hidden>
+          <img src="Assets/R6_animation.gif" alt="Animated three-dimensional flight trajectory for Route R6" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R6</span><span class="dfc-figure-note">3D trajectory from takeoff to landing.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="R7" hidden>
+          <img src="Assets/R7_animation.gif" alt="Animated three-dimensional flight trajectory for Route R7" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Route R7</span><span class="dfc-figure-note">A route with high simulated payload feasibility.</span></figcaption>
+        </figure>
+      </div>
+      <div class="dfc-empty-selection" data-dfc-empty-selection="routes" hidden>Select at least one route to view its 3D flight process.</div>
+    </section>
+
+    <section class="dfc-eda-group" aria-labelledby="dfc-eda-notebook-title">
+      <div class="dfc-eda-group-head">
+        <h3 id="dfc-eda-notebook-title">04 · Energy relationships from eda.ipynb</h3>
+        <span class="text-muted">Choose one or more relationships · layout adapts automatically</span>
+      </div>
+
+      <div class="dfc-profile-controls">
+        <fieldset class="dfc-multi-select" data-dfc-selector="notebook">
+          <legend class="sr-only">Choose notebook figures</legend>
+          <label class="form-check" for="dfc-figure-distance">
+            <input class="form-check-input" id="dfc-figure-distance" type="checkbox" value="distance" checked>
+            <span>Distance</span>
+          </label>
+          <label class="form-check" for="dfc-figure-height">
+            <input class="form-check-input" id="dfc-figure-height" type="checkbox" value="height">
+            <span>Height</span>
+          </label>
+          <label class="form-check" for="dfc-figure-payload">
+            <input class="form-check-input" id="dfc-figure-payload" type="checkbox" value="payload">
+            <span>Payload</span>
+          </label>
+          <label class="form-check" for="dfc-figure-wind">
+            <input class="form-check-input" id="dfc-figure-wind" type="checkbox" value="wind">
+            <span>Wind</span>
+          </label>
+          <label class="form-check" for="dfc-figure-accel-variability">
+            <input class="form-check-input" id="dfc-figure-accel-variability" type="checkbox" value="accel-variability">
+            <span>Accel variability</span>
+          </label>
+          <label class="form-check" for="dfc-figure-ground-speed">
+            <input class="form-check-input" id="dfc-figure-ground-speed" type="checkbox" value="ground-speed">
+            <span>Ground speed</span>
+          </label>
+          <label class="form-check" for="dfc-figure-mean-accel">
+            <input class="form-check-input" id="dfc-figure-mean-accel" type="checkbox" value="mean-accel">
+            <span>Mean acceleration</span>
+          </label>
+        </fieldset>
+        <span class="dfc-selection-summary" data-dfc-selection-summary="notebook" aria-live="polite">1 figure selected</span>
+      </div>
+
+      <div class="dfc-selectable-grid" data-dfc-selectable-grid="notebook" data-count="1">
+        <figure class="dfc-figure-card" data-dfc-choice-card="distance">
+          <img src="Assets/eda_energy_distance.png" alt="Energy consumption versus total distance flown" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Distance vs. energy</span><span class="dfc-figure-note">Relationship between total distance flown and consumed energy.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="height" hidden>
+          <img src="Assets/eda_energy_height.png" alt="Energy consumption versus maximum height above ground" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Height AGL vs. energy</span><span class="dfc-figure-note">Effect of maximum flight height relative to takeoff.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="payload" hidden>
+          <img src="Assets/eda_energy_payload.png" alt="Distribution of energy consumption by payload mass" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Payload vs. energy</span><span class="dfc-figure-note">Energy distributions and observations across payload groups.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="wind" hidden>
+          <img src="Assets/eda_energy_wind.png" alt="Energy consumption versus mean wind speed" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Wind speed vs. energy</span><span class="dfc-figure-note">Relationship between mean measured wind speed and energy demand.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="accel-variability" hidden>
+          <img src="Assets/eda_energy_acceleration_variability.png" alt="Energy consumption versus acceleration variability" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Acceleration variability</span><span class="dfc-figure-note">Energy response to the standard deviation of acceleration magnitude.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="ground-speed" hidden>
+          <img src="Assets/eda_energy_ground_speed.png" alt="Energy consumption versus mean ground speed" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Ground speed vs. energy</span><span class="dfc-figure-note">Relationship between mean velocity magnitude and energy.</span></figcaption>
+        </figure>
+        <figure class="dfc-figure-card" data-dfc-choice-card="mean-accel" hidden>
+          <img src="Assets/eda_energy_mean_acceleration_duration.png" alt="Energy consumption versus mean acceleration colored by flight duration" loading="lazy">
+          <figcaption><span class="dfc-figure-title">Mean acceleration & duration</span><span class="dfc-figure-note">Energy relationship with mean acceleration, colored by flight duration.</span></figcaption>
+        </figure>
+      </div>
+      <div class="dfc-empty-selection" data-dfc-empty-selection="notebook" hidden>Select at least one relationship to view its notebook figure.</div>
+    </section>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById("drone-fleet-concept");
+      if (!root) return;
+
+      const profileData = {"R1":[{"bin":0.0,"alt_med":-0.0,"alt_q1":-0.09,"alt_q3":0.08,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.03},{"bin":5.0,"alt_med":-0.02,"alt_q1":-0.34,"alt_q3":0.32,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.02},{"bin":10.0,"alt_med":0.29,"alt_q1":-0.32,"alt_q3":1.97,"speed_med":0.22,"speed_q1":0.02,"speed_q3":1.52},{"bin":15.0,"alt_med":22.02,"alt_q1":9.75,"alt_q3":32.07,"speed_med":2.98,"speed_q1":2.82,"speed_q3":3.04},{"bin":20.0,"alt_med":46.87,"alt_q1":25.73,"alt_q3":57.04,"speed_med":2.99,"speed_q1":2.85,"speed_q3":3.05},{"bin":25.0,"alt_med":51.72,"alt_q1":29.03,"alt_q3":77.12,"speed_med":3.92,"speed_q1":2.96,"speed_q3":5.84},{"bin":30.0,"alt_med":52.54,"alt_q1":44.1,"alt_q3":77.58,"speed_med":6.01,"speed_q1":4.02,"speed_q3":8.63},{"bin":35.0,"alt_med":61.12,"alt_q1":42.6,"alt_q3":79.1,"speed_med":4.99,"speed_q1":3.87,"speed_q3":7.91},{"bin":40.0,"alt_med":61.2,"alt_q1":31.61,"alt_q3":79.62,"speed_med":5.71,"speed_q1":3.96,"speed_q3":7.62},{"bin":45.0,"alt_med":60.63,"alt_q1":31.69,"alt_q3":80.45,"speed_med":7.78,"speed_q1":5.82,"speed_q3":9.82},{"bin":50.0,"alt_med":61.01,"alt_q1":31.99,"alt_q3":80.52,"speed_med":6.0,"speed_q1":4.01,"speed_q3":9.38},{"bin":55.0,"alt_med":53.03,"alt_q1":27.39,"alt_q3":79.54,"speed_med":4.14,"speed_q1":3.77,"speed_q3":6.67},{"bin":60.0,"alt_med":53.27,"alt_q1":25.22,"alt_q3":77.67,"speed_med":5.9,"speed_q1":3.94,"speed_q3":8.49},{"bin":65.0,"alt_med":49.8,"alt_q1":24.75,"alt_q3":73.25,"speed_med":3.12,"speed_q1":2.66,"speed_q3":5.89},{"bin":70.0,"alt_med":35.22,"alt_q1":21.97,"alt_q3":53.71,"speed_med":2.89,"speed_q1":1.83,"speed_q3":3.24},{"bin":75.0,"alt_med":21.03,"alt_q1":14.3,"alt_q3":29.95,"speed_med":1.49,"speed_q1":1.08,"speed_q3":2.58},{"bin":80.0,"alt_med":11.66,"alt_q1":5.37,"alt_q3":16.79,"speed_med":1.05,"speed_q1":1.0,"speed_q3":1.17},{"bin":85.0,"alt_med":2.18,"alt_q1":-0.17,"alt_q3":7.22,"speed_med":0.97,"speed_q1":0.23,"speed_q3":1.05},{"bin":90.0,"alt_med":-0.1,"alt_q1":-1.61,"alt_q3":1.16,"speed_med":0.06,"speed_q1":0.04,"speed_q3":0.16},{"bin":95.0,"alt_med":-0.12,"alt_q1":-1.53,"alt_q3":1.06,"speed_med":0.04,"speed_q1":0.02,"speed_q3":0.05},{"bin":100.0,"alt_med":-0.04,"alt_q1":-1.37,"alt_q3":1.1,"speed_med":0.03,"speed_q1":0.02,"speed_q3":0.05}],"R2":[{"bin":0.0,"alt_med":0.11,"alt_q1":0.11,"alt_q3":0.11,"speed_med":0.23,"speed_q1":0.23,"speed_q3":0.23},{"bin":5.0,"alt_med":11.74,"alt_q1":11.74,"alt_q3":11.74,"speed_med":1.97,"speed_q1":1.97,"speed_q3":1.97},{"bin":10.0,"alt_med":23.38,"alt_q1":23.38,"alt_q3":23.38,"speed_med":3.46,"speed_q1":3.46,"speed_q3":3.46},{"bin":15.0,"alt_med":23.76,"alt_q1":23.76,"alt_q3":23.76,"speed_med":3.88,"speed_q1":3.88,"speed_q3":3.88},{"bin":20.0,"alt_med":23.74,"alt_q1":23.74,"alt_q3":23.74,"speed_med":3.92,"speed_q1":3.92,"speed_q3":3.92},{"bin":25.0,"alt_med":22.77,"alt_q1":22.77,"alt_q3":22.77,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":30.0,"alt_med":22.56,"alt_q1":22.56,"alt_q3":22.56,"speed_med":4.02,"speed_q1":4.02,"speed_q3":4.02},{"bin":35.0,"alt_med":23.16,"alt_q1":23.16,"alt_q3":23.16,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":40.0,"alt_med":22.13,"alt_q1":22.13,"alt_q3":22.13,"speed_med":3.91,"speed_q1":3.91,"speed_q3":3.91},{"bin":45.0,"alt_med":20.99,"alt_q1":20.99,"alt_q3":20.99,"speed_med":3.96,"speed_q1":3.96,"speed_q3":3.96},{"bin":50.0,"alt_med":20.41,"alt_q1":20.41,"alt_q3":20.41,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":55.0,"alt_med":21.35,"alt_q1":21.35,"alt_q3":21.35,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":60.0,"alt_med":20.29,"alt_q1":20.29,"alt_q3":20.29,"speed_med":1.49,"speed_q1":1.49,"speed_q3":1.49},{"bin":65.0,"alt_med":8.52,"alt_q1":8.52,"alt_q3":8.52,"speed_med":1.03,"speed_q1":1.03,"speed_q3":1.03},{"bin":70.0,"alt_med":-1.75,"alt_q1":-1.75,"alt_q3":-1.75,"speed_med":0.64,"speed_q1":0.64,"speed_q3":0.64},{"bin":75.0,"alt_med":-2.34,"alt_q1":-2.34,"alt_q3":-2.34,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":80.0,"alt_med":-3.13,"alt_q1":-3.13,"alt_q3":-3.13,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":85.0,"alt_med":-4.16,"alt_q1":-4.16,"alt_q3":-4.16,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":90.0,"alt_med":-4.09,"alt_q1":-4.09,"alt_q3":-4.09,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":95.0,"alt_med":-2.84,"alt_q1":-2.84,"alt_q3":-2.84,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":100.0,"alt_med":-1.37,"alt_q1":-1.37,"alt_q3":-1.37,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02}],"R3":[{"bin":0.0,"alt_med":0.25,"alt_q1":0.25,"alt_q3":0.25,"speed_med":0.3,"speed_q1":0.3,"speed_q3":0.3},{"bin":5.0,"alt_med":14.76,"alt_q1":14.76,"alt_q3":14.76,"speed_med":2.4,"speed_q1":2.4,"speed_q3":2.4},{"bin":10.0,"alt_med":23.8,"alt_q1":23.8,"alt_q3":23.8,"speed_med":3.73,"speed_q1":3.73,"speed_q3":3.73},{"bin":15.0,"alt_med":23.32,"alt_q1":23.32,"alt_q3":23.32,"speed_med":3.93,"speed_q1":3.93,"speed_q3":3.93},{"bin":20.0,"alt_med":23.59,"alt_q1":23.59,"alt_q3":23.59,"speed_med":3.92,"speed_q1":3.92,"speed_q3":3.92},{"bin":25.0,"alt_med":22.73,"alt_q1":22.73,"alt_q3":22.73,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":30.0,"alt_med":22.95,"alt_q1":22.95,"alt_q3":22.95,"speed_med":4.02,"speed_q1":4.02,"speed_q3":4.02},{"bin":35.0,"alt_med":22.69,"alt_q1":22.69,"alt_q3":22.69,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":40.0,"alt_med":21.95,"alt_q1":21.95,"alt_q3":21.95,"speed_med":3.95,"speed_q1":3.95,"speed_q3":3.95},{"bin":45.0,"alt_med":21.58,"alt_q1":21.58,"alt_q3":21.58,"speed_med":4.01,"speed_q1":4.01,"speed_q3":4.01},{"bin":50.0,"alt_med":21.63,"alt_q1":21.63,"alt_q3":21.63,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":55.0,"alt_med":21.29,"alt_q1":21.29,"alt_q3":21.29,"speed_med":4.01,"speed_q1":4.01,"speed_q3":4.01},{"bin":60.0,"alt_med":21.41,"alt_q1":21.41,"alt_q3":21.41,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":65.0,"alt_med":22.22,"alt_q1":22.22,"alt_q3":22.22,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":70.0,"alt_med":19.89,"alt_q1":19.89,"alt_q3":19.89,"speed_med":1.12,"speed_q1":1.12,"speed_q3":1.12},{"bin":75.0,"alt_med":7.96,"alt_q1":7.96,"alt_q3":7.96,"speed_med":1.07,"speed_q1":1.07,"speed_q3":1.07},{"bin":80.0,"alt_med":-1.0,"alt_q1":-1.0,"alt_q3":-1.0,"speed_med":0.07,"speed_q1":0.07,"speed_q3":0.07},{"bin":85.0,"alt_med":-0.59,"alt_q1":-0.59,"alt_q3":-0.59,"speed_med":0.03,"speed_q1":0.03,"speed_q3":0.03},{"bin":90.0,"alt_med":-0.59,"alt_q1":-0.59,"alt_q3":-0.59,"speed_med":0.01,"speed_q1":0.01,"speed_q3":0.01},{"bin":95.0,"alt_med":-0.56,"alt_q1":-0.56,"alt_q3":-0.56,"speed_med":0.01,"speed_q1":0.01,"speed_q3":0.01},{"bin":100.0,"alt_med":-0.41,"alt_q1":-0.41,"alt_q3":-0.41,"speed_med":0.01,"speed_q1":0.01,"speed_q3":0.01}],"R4":[{"bin":0.0,"alt_med":-0.16,"alt_q1":-0.16,"alt_q3":-0.16,"speed_med":0.03,"speed_q1":0.03,"speed_q3":0.03},{"bin":5.0,"alt_med":-0.49,"alt_q1":-0.49,"alt_q3":-0.49,"speed_med":0.03,"speed_q1":0.03,"speed_q3":0.03},{"bin":10.0,"alt_med":11.18,"alt_q1":11.18,"alt_q3":11.18,"speed_med":2.53,"speed_q1":2.53,"speed_q3":2.53},{"bin":15.0,"alt_med":23.91,"alt_q1":23.91,"alt_q3":23.91,"speed_med":1.23,"speed_q1":1.23,"speed_q3":1.23},{"bin":20.0,"alt_med":23.5,"alt_q1":23.5,"alt_q3":23.5,"speed_med":3.88,"speed_q1":3.88,"speed_q3":3.88},{"bin":25.0,"alt_med":23.67,"alt_q1":23.67,"alt_q3":23.67,"speed_med":3.94,"speed_q1":3.94,"speed_q3":3.94},{"bin":30.0,"alt_med":24.16,"alt_q1":24.16,"alt_q3":24.16,"speed_med":3.98,"speed_q1":3.98,"speed_q3":3.98},{"bin":35.0,"alt_med":23.78,"alt_q1":23.78,"alt_q3":23.78,"speed_med":3.23,"speed_q1":3.23,"speed_q3":3.23},{"bin":40.0,"alt_med":22.93,"alt_q1":22.93,"alt_q3":22.93,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":45.0,"alt_med":22.96,"alt_q1":22.96,"alt_q3":22.96,"speed_med":3.95,"speed_q1":3.95,"speed_q3":3.95},{"bin":50.0,"alt_med":23.9,"alt_q1":23.9,"alt_q3":23.9,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":55.0,"alt_med":22.94,"alt_q1":22.94,"alt_q3":22.94,"speed_med":3.98,"speed_q1":3.98,"speed_q3":3.98},{"bin":60.0,"alt_med":23.65,"alt_q1":23.65,"alt_q3":23.65,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":65.0,"alt_med":23.44,"alt_q1":23.44,"alt_q3":23.44,"speed_med":3.31,"speed_q1":3.31,"speed_q3":3.31},{"bin":70.0,"alt_med":23.19,"alt_q1":23.19,"alt_q3":23.19,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":75.0,"alt_med":22.33,"alt_q1":22.33,"alt_q3":22.33,"speed_med":4.0,"speed_q1":4.0,"speed_q3":4.0},{"bin":80.0,"alt_med":21.82,"alt_q1":21.82,"alt_q3":21.82,"speed_med":3.99,"speed_q1":3.99,"speed_q3":3.99},{"bin":85.0,"alt_med":19.67,"alt_q1":19.67,"alt_q3":19.67,"speed_med":1.16,"speed_q1":1.16,"speed_q3":1.16},{"bin":90.0,"alt_med":10.62,"alt_q1":10.62,"alt_q3":10.62,"speed_med":1.02,"speed_q1":1.02,"speed_q3":1.02},{"bin":95.0,"alt_med":1.31,"alt_q1":1.31,"alt_q3":1.31,"speed_med":0.84,"speed_q1":0.84,"speed_q3":0.84},{"bin":100.0,"alt_med":0.68,"alt_q1":0.68,"alt_q3":0.68,"speed_med":0.05,"speed_q1":0.05,"speed_q3":0.05}],"R5":[{"bin":0.0,"alt_med":0.0,"alt_q1":-0.04,"alt_q3":0.06,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.02},{"bin":5.0,"alt_med":0.65,"alt_q1":0.47,"alt_q3":1.0,"speed_med":0.19,"speed_q1":0.02,"speed_q3":0.97},{"bin":10.0,"alt_med":12.25,"alt_q1":1.35,"alt_q3":23.11,"speed_med":1.32,"speed_q1":0.26,"speed_q3":2.52},{"bin":15.0,"alt_med":23.14,"alt_q1":21.46,"alt_q3":24.01,"speed_med":3.14,"speed_q1":2.72,"speed_q3":3.6},{"bin":20.0,"alt_med":24.03,"alt_q1":23.28,"alt_q3":30.26,"speed_med":4.6,"speed_q1":3.64,"speed_q3":5.57},{"bin":25.0,"alt_med":23.97,"alt_q1":23.3,"alt_q3":30.86,"speed_med":4.48,"speed_q1":3.82,"speed_q3":5.29},{"bin":30.0,"alt_med":24.07,"alt_q1":23.86,"alt_q3":30.79,"speed_med":5.02,"speed_q1":3.94,"speed_q3":6.33},{"bin":35.0,"alt_med":23.38,"alt_q1":22.57,"alt_q3":30.6,"speed_med":4.99,"speed_q1":3.97,"speed_q3":6.55},{"bin":40.0,"alt_med":22.74,"alt_q1":22.54,"alt_q3":29.47,"speed_med":5.01,"speed_q1":4.02,"speed_q3":6.08},{"bin":45.0,"alt_med":22.87,"alt_q1":22.66,"alt_q3":29.56,"speed_med":4.13,"speed_q1":4.04,"speed_q3":4.92},{"bin":50.0,"alt_med":22.57,"alt_q1":22.25,"alt_q3":29.18,"speed_med":4.9,"speed_q1":4.01,"speed_q3":6.27},{"bin":55.0,"alt_med":22.11,"alt_q1":21.45,"alt_q3":28.9,"speed_med":4.93,"speed_q1":3.88,"speed_q3":6.46},{"bin":60.0,"alt_med":21.15,"alt_q1":20.89,"alt_q3":27.55,"speed_med":3.93,"speed_q1":3.17,"speed_q3":4.48},{"bin":65.0,"alt_med":19.93,"alt_q1":17.79,"alt_q3":26.63,"speed_med":2.54,"speed_q1":1.09,"speed_q3":3.99},{"bin":70.0,"alt_med":14.63,"alt_q1":7.9,"alt_q3":26.13,"speed_med":2.07,"speed_q1":1.14,"speed_q3":3.25},{"bin":75.0,"alt_med":8.84,"alt_q1":0.7,"alt_q3":17.65,"speed_med":1.2,"speed_q1":0.8,"speed_q3":2.04},{"bin":80.0,"alt_med":2.43,"alt_q1":0.58,"alt_q3":7.66,"speed_med":0.66,"speed_q1":0.08,"speed_q3":1.92},{"bin":85.0,"alt_med":0.63,"alt_q1":-0.3,"alt_q3":4.14,"speed_med":0.03,"speed_q1":0.02,"speed_q3":0.3},{"bin":90.0,"alt_med":0.74,"alt_q1":0.28,"alt_q3":1.36,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.25},{"bin":95.0,"alt_med":0.28,"alt_q1":-0.27,"alt_q3":0.61,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":100.0,"alt_med":0.26,"alt_q1":-0.2,"alt_q3":0.45,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.02}],"R6":[{"bin":0.0,"alt_med":-0.05,"alt_q1":-0.25,"alt_q3":0.12,"speed_med":0.03,"speed_q1":0.03,"speed_q3":0.04},{"bin":5.0,"alt_med":-0.01,"alt_q1":-0.03,"alt_q3":0.0,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.03},{"bin":10.0,"alt_med":0.29,"alt_q1":0.27,"alt_q3":10.12,"speed_med":0.32,"speed_q1":0.11,"speed_q3":2.13},{"bin":15.0,"alt_med":23.05,"alt_q1":22.73,"alt_q3":31.49,"speed_med":2.97,"speed_q1":2.8,"speed_q3":3.96},{"bin":20.0,"alt_med":22.91,"alt_q1":22.53,"alt_q3":47.21,"speed_med":5.9,"speed_q1":3.99,"speed_q3":8.74},{"bin":25.0,"alt_med":22.5,"alt_q1":21.99,"alt_q3":45.81,"speed_med":4.09,"speed_q1":4.02,"speed_q3":9.63},{"bin":30.0,"alt_med":21.83,"alt_q1":21.8,"alt_q3":44.17,"speed_med":5.85,"speed_q1":4.79,"speed_q3":6.12},{"bin":35.0,"alt_med":22.28,"alt_q1":21.79,"alt_q3":44.23,"speed_med":9.74,"speed_q1":5.99,"speed_q3":9.79},{"bin":40.0,"alt_med":22.99,"alt_q1":21.53,"alt_q3":45.58,"speed_med":9.94,"speed_q1":5.98,"speed_q3":9.98},{"bin":45.0,"alt_med":23.1,"alt_q1":22.16,"alt_q3":45.95,"speed_med":6.01,"speed_q1":4.01,"speed_q3":9.99},{"bin":50.0,"alt_med":23.34,"alt_q1":21.77,"alt_q3":46.23,"speed_med":5.8,"speed_q1":4.04,"speed_q3":6.01},{"bin":55.0,"alt_med":22.85,"alt_q1":22.22,"alt_q3":46.96,"speed_med":5.08,"speed_q1":4.42,"speed_q3":8.35},{"bin":60.0,"alt_med":22.72,"alt_q1":21.93,"alt_q3":46.59,"speed_med":9.03,"speed_q1":5.83,"speed_q3":9.58},{"bin":65.0,"alt_med":21.0,"alt_q1":16.23,"alt_q3":21.54,"speed_med":4.42,"speed_q1":1.04,"speed_q3":5.98},{"bin":70.0,"alt_med":21.1,"alt_q1":7.15,"alt_q3":21.23,"speed_med":2.54,"speed_q1":0.95,"speed_q3":5.86},{"bin":75.0,"alt_med":19.81,"alt_q1":2.26,"alt_q3":21.07,"speed_med":1.16,"speed_q1":0.07,"speed_q3":2.85},{"bin":80.0,"alt_med":9.65,"alt_q1":0.46,"alt_q3":16.82,"speed_med":1.0,"speed_q1":0.02,"speed_q3":1.06},{"bin":85.0,"alt_med":1.08,"alt_q1":0.65,"alt_q3":6.37,"speed_med":0.66,"speed_q1":0.07,"speed_q3":0.98},{"bin":90.0,"alt_med":-0.12,"alt_q1":-0.15,"alt_q3":-0.08,"speed_med":0.04,"speed_q1":0.03,"speed_q3":0.05},{"bin":95.0,"alt_med":0.42,"alt_q1":-0.18,"alt_q3":0.82,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.03},{"bin":100.0,"alt_med":-0.24,"alt_q1":-0.45,"alt_q3":0.77,"speed_med":0.02,"speed_q1":0.01,"speed_q3":0.03}],"R7":[{"bin":0.0,"alt_med":0.09,"alt_q1":0.03,"alt_q3":0.16,"speed_med":0.03,"speed_q1":0.02,"speed_q3":0.04},{"bin":5.0,"alt_med":0.28,"alt_q1":-0.06,"alt_q3":0.61,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.03},{"bin":10.0,"alt_med":0.01,"alt_q1":-0.78,"alt_q3":0.79,"speed_med":0.02,"speed_q1":0.02,"speed_q3":0.02},{"bin":15.0,"alt_med":2.44,"alt_q1":2.36,"alt_q3":2.51,"speed_med":1.26,"speed_q1":0.64,"speed_q3":1.87},{"bin":20.0,"alt_med":11.46,"alt_q1":6.91,"alt_q3":16.02,"speed_med":0.94,"speed_q1":0.48,"speed_q3":1.4},{"bin":25.0,"alt_med":16.21,"alt_q1":9.5,"alt_q3":22.93,"speed_med":6.0,"speed_q1":4.19,"speed_q3":7.82},{"bin":30.0,"alt_med":33.32,"alt_q1":28.52,"alt_q3":38.13,"speed_med":6.16,"speed_q1":4.39,"speed_q3":7.92},{"bin":35.0,"alt_med":40.72,"alt_q1":37.17,"alt_q3":44.26,"speed_med":7.42,"speed_q1":6.23,"speed_q3":8.61},{"bin":40.0,"alt_med":53.83,"alt_q1":49.57,"alt_q3":58.09,"speed_med":6.56,"speed_q1":4.92,"speed_q3":8.2},{"bin":45.0,"alt_med":69.47,"alt_q1":63.86,"alt_q3":75.08,"speed_med":9.35,"speed_q1":9.07,"speed_q3":9.62},{"bin":50.0,"alt_med":84.73,"alt_q1":81.31,"alt_q3":88.16,"speed_med":5.63,"speed_q1":3.98,"speed_q3":7.28},{"bin":55.0,"alt_med":85.29,"alt_q1":81.22,"alt_q3":89.37,"speed_med":3.26,"speed_q1":2.13,"speed_q3":4.39},{"bin":60.0,"alt_med":73.68,"alt_q1":63.84,"alt_q3":83.51,"speed_med":3.58,"speed_q1":2.62,"speed_q3":4.55},{"bin":65.0,"alt_med":51.57,"alt_q1":42.07,"alt_q3":61.07,"speed_med":5.6,"speed_q1":5.58,"speed_q3":5.62},{"bin":70.0,"alt_med":31.56,"alt_q1":25.52,"alt_q3":37.59,"speed_med":3.35,"speed_q1":2.24,"speed_q3":4.47},{"bin":75.0,"alt_med":15.12,"alt_q1":13.23,"alt_q3":17.0,"speed_med":1.05,"speed_q1":1.02,"speed_q3":1.08},{"bin":80.0,"alt_med":7.71,"alt_q1":5.7,"alt_q3":9.72,"speed_med":1.16,"speed_q1":1.15,"speed_q3":1.18},{"bin":85.0,"alt_med":-0.81,"alt_q1":-2.01,"alt_q3":0.38,"speed_med":0.64,"speed_q1":0.43,"speed_q3":0.85},{"bin":90.0,"alt_med":-1.97,"alt_q1":-2.46,"alt_q3":-1.47,"speed_med":0.04,"speed_q1":0.04,"speed_q3":0.04},{"bin":95.0,"alt_med":-1.58,"alt_q1":-2.01,"alt_q3":-1.16,"speed_med":0.04,"speed_q1":0.03,"speed_q3":0.04},{"bin":100.0,"alt_med":-1.28,"alt_q1":-1.58,"alt_q3":-0.98,"speed_med":0.04,"speed_q1":0.04,"speed_q3":0.04}]};
+      const profileCounts = { R1: 182, R2: 1, R3: 1, R4: 1, R5: 4, R6: 5, R7: 2 };
+      const profileRoute = root.querySelector("#dfc-profile-route");
+      const profileSummary = root.querySelector("[data-dfc-profile-summary]");
+      const altitudeChart = root.querySelector('[data-dfc-profile-chart="altitude"]');
+      const speedChart = root.querySelector('[data-dfc-profile-chart="speed"]');
+      const svgNamespace = "http://www.w3.org/2000/svg";
+
+      const appendSvg = (parent, tag, attributes = {}, text = "") => {
+        const element = document.createElementNS(svgNamespace, tag);
+        Object.entries(attributes).forEach(([name, value]) => element.setAttribute(name, String(value)));
+        if (text) element.textContent = text;
+        parent.appendChild(element);
+        return element;
+      };
+
+      const scenarioPresets = {
+        morning: {
+          name: "Morning deliveries",
+          description: "Morning multi-route deliveries with one intentionally oversized R2 order.",
+          safety: 0.85,
+          orders: [
+            ["R1", 2.7], ["R1", 2.2], ["R1", 2.0], ["R1", 1.5],
+            ["R7", 2.0], ["R7", 1.5],
+            ["R2", 0.8], ["R2", 0.6], ["R2", 0.4], ["R2", 5.4]
+          ]
+        },
+        afternoon: {
+          name: "Afternoon mixed routes",
+          description: "Balanced afternoon demand spread across five routes and moderate payloads.",
+          safety: 0.85,
+          orders: [
+            ["R1", 1.8], ["R1", 1.2],
+            ["R5", 1.4], ["R5", 0.8],
+            ["R6", 0.9], ["R6", 0.6],
+            ["R7", 2.5], ["R3", 0.7]
+          ]
+        },
+        wind: {
+          name: "Wind-constrained service",
+          description: "Lower usable battery represents a conservative operating envelope under stronger wind.",
+          safety: 0.75,
+          orders: [
+            ["R1", 2.0], ["R1", 1.0],
+            ["R2", 0.4], ["R4", 0.3], ["R5", 0.7],
+            ["R6", 0.2], ["R7", 2.5]
+          ]
+        },
+        peak: {
+          name: "Peak demand",
+          description: "Fourteen orders stress fleet capacity across R1, R2, R5 and R7.",
+          safety: 0.85,
+          orders: [
+            ["R1", 2.8], ["R1", 2.4], ["R1", 2.1], ["R1", 1.8], ["R1", 1.2],
+            ["R2", 1.0], ["R2", 0.8], ["R2", 0.6],
+            ["R5", 1.8], ["R5", 1.2], ["R5", 0.7],
+            ["R7", 3.0], ["R7", 2.2], ["R7", 1.4]
+          ]
+        }
+      };
+
+      const defaultFleet = [
+        { id: "D1", name: "Drone 1", battery: 22 },
+        { id: "D2", name: "Drone 2", battery: 23 },
+        { id: "D3", name: "Drone 3", battery: 24 },
+        { id: "D4", name: "Drone 4", battery: 25 },
+        { id: "D5", name: "Drone 5", battery: 26 }
+      ];
+
+      const routeEnergyModel = {
+        R1: { base: 16.2, slope: 0.84 },
+        R2: { base: 18.8, slope: 1.25 },
+        R3: { base: 19.4, slope: 1.10 },
+        R4: { base: 20.2, slope: 1.00 },
+        R5: { base: 18.0, slope: 1.05 },
+        R6: { base: 21.0, slope: 0.95 },
+        R7: { base: 15.7, slope: 0.94 }
+      };
+
+      const routeColors = {
+        R1: "var(--dfc-r1)",
+        R2: "var(--dfc-r2)",
+        R3: "var(--dfc-r3)",
+        R4: "var(--dfc-r4)",
+        R5: "var(--dfc-r5)",
+        R6: "var(--dfc-r6)",
+        R7: "var(--dfc-r7)"
+      };
+
+      const scenarioSelect = root.querySelector("#dfc-scenario-select");
+      const safetyMargin = root.querySelector("#dfc-safety-margin");
+      const customFields = root.querySelector("[data-dfc-custom-fields]");
+      const customName = root.querySelector("#dfc-custom-name");
+      const customOrders = root.querySelector("#dfc-custom-orders");
+      const droneCount = root.querySelector("#dfc-drone-count");
+      const fleetCapacities = root.querySelector("[data-dfc-fleet-capacities]");
+      const runScenarioButton = root.querySelector("#dfc-run-scenario");
+      const scenarioValidation = root.querySelector("[data-dfc-scenario-validation]");
+      const dashboardTitle = root.querySelector("[data-dfc-dashboard-title]");
+      const dashboardSubtitle = root.querySelector("[data-dfc-dashboard-subtitle]");
+      const scenarioDescription = root.querySelector("[data-dfc-scenario-description]");
+      const inputOrders = root.querySelector("[data-dfc-input-orders]");
+      const inputPayload = root.querySelector("[data-dfc-input-payload]");
+      const inputAverage = root.querySelector("[data-dfc-input-average]");
+      const inputFleet = root.querySelector("[data-dfc-input-fleet]");
+      const routeMixBar = root.querySelector("[data-dfc-route-mix-bar]");
+      const routeMixLegend = root.querySelector("[data-dfc-route-mix-legend]");
+      const resultDrones = root.querySelector("[data-dfc-result-drones]");
+      const resultRoutes = root.querySelector("[data-dfc-result-routes]");
+      const resultOrders = root.querySelector("[data-dfc-result-orders]");
+      const resultRate = root.querySelector("[data-dfc-result-rate]");
+      const resultUtilization = root.querySelector("[data-dfc-result-utilization]");
+      const resultRemaining = root.querySelector("[data-dfc-result-remaining]");
+      const runStatus = root.querySelector("[data-dfc-run-status]");
+      const matrixBody = root.querySelector("[data-dfc-matrix-body]");
+      const energyChart = root.querySelector("[data-dfc-energy-chart]");
+      const energyTitle = root.querySelector("[data-dfc-energy-title]");
+      const energySubtitle = root.querySelector("[data-dfc-energy-subtitle]");
+      const energyNote = root.querySelector("[data-dfc-energy-note]");
+      const allocationContent = root.querySelector("[data-dfc-allocation-content]");
+
+      const formatOrderId = (index) => `O${String(index + 1).padStart(2, "0")}`;
+
+      let fleetBatteryValues = defaultFleet.map((drone) => drone.battery);
+
+      const suggestedBattery = (index) => defaultFleet[index]?.battery ?? Math.min(30, 22 + index);
+
+      const renderFleetInputs = (count) => {
+        const nextValues = Array.from({ length: count }, (_, index) => fleetBatteryValues[index] ?? suggestedBattery(index));
+        fleetBatteryValues = nextValues;
+        fleetCapacities.replaceChildren();
+
+        nextValues.forEach((battery, index) => {
+          const label = document.createElement("label");
+          label.className = "form-label dfc-fleet-capacity";
+          label.htmlFor = `dfc-drone-battery-${index + 1}`;
+          label.append(`Drone ${index + 1}`);
+
+          const input = document.createElement("input");
+          input.className = "form-control";
+          input.id = `dfc-drone-battery-${index + 1}`;
+          input.type = "number";
+          input.min = "10";
+          input.max = "100";
+          input.step = "0.5";
+          input.value = String(battery);
+          input.inputMode = "decimal";
+          input.setAttribute("aria-label", `Drone ${index + 1} battery capacity in watt-hours`);
+          input.addEventListener("input", () => {
+            fleetBatteryValues[index] = Number(input.value);
+            markScenarioPending();
+          });
+          label.appendChild(input);
+          fleetCapacities.appendChild(label);
+        });
+      };
+
+      const readFleetConfiguration = () => {
+        const count = Number(droneCount.value);
+        if (!Number.isInteger(count) || count < 1 || count > 12) {
+          throw new Error("Number of drones must be a whole number between 1 and 12.");
+        }
+
+        const inputs = [...fleetCapacities.querySelectorAll("input")];
+        if (inputs.length !== count) {
+          throw new Error("Fleet inputs are out of sync. Re-enter the number of drones.");
+        }
+
+        return inputs.map((input, index) => {
+          const battery = Number(input.value);
+          if (!Number.isFinite(battery) || battery < 10 || battery > 100) {
+            throw new Error(`Drone ${index + 1} battery must be between 10 and 100 Wh.`);
+          }
+          fleetBatteryValues[index] = battery;
+          return { id: `D${index + 1}`, name: `Drone ${index + 1}`, battery };
+        });
+      };
+
+      const normalizeOrders = (orders) => orders.map(([route, payload], index) => ({
+        id: formatOrderId(index),
+        route,
+        payload
+      }));
+
+      const parseCustomOrders = () => {
+        const lines = customOrders.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        if (!lines.length) throw new Error("Add at least one order using route,payload_kg.");
+        if (lines.length > 30) throw new Error("Custom scenarios support up to 30 orders.");
+
+        return lines.map((line, index) => {
+          const parts = line.split(/[\s,;]+/).filter(Boolean);
+          const route = String(parts[0] || "").toUpperCase();
+          const payload = Number(parts[1]);
+          if (!/^R[1-7]$/.test(route) || parts.length !== 2 || !Number.isFinite(payload) || payload <= 0 || payload > 8) {
+            throw new Error(`Line ${index + 1} is invalid. Use R1–R7 and a payload between 0 and 8 kg.`);
+          }
+          return [route, payload];
+        });
+      };
+
+      const feasiblePayload = (drone, route, safety) => {
+        const model = routeEnergyModel[route];
+        return Math.max(0, Math.min(5, (drone.battery * safety - model.base) / model.slope));
+      };
+
+      const allocateOrders = (orders, safety, fleet) => {
+        const assignments = [];
+        const unassigned = [];
+        const sortedOrders = orders.slice().sort((a, b) => b.payload - a.payload);
+
+        sortedOrders.forEach((order) => {
+          const candidates = [];
+          fleet.forEach((drone) => {
+            const current = assignments.find((assignment) => assignment.drone.id === drone.id);
+            if (current && current.route !== order.route) return;
+            const capacity = feasiblePayload(drone, order.route, safety);
+            const used = current ? current.orders.reduce((sum, item) => sum + item.payload, 0) : 0;
+            if (used + order.payload <= capacity + 1e-9) {
+              candidates.push({ drone, capacity, current, remainder: capacity - used - order.payload });
+            }
+          });
+
+          candidates.sort((a, b) => a.remainder - b.remainder || a.drone.battery - b.drone.battery);
+          const choice = candidates[0];
+          if (!choice) {
+            unassigned.push(order);
+          } else if (choice.current) {
+            choice.current.orders.push(order);
+          } else {
+            assignments.push({
+              drone: choice.drone,
+              route: order.route,
+              capacity: choice.capacity,
+              orders: [order]
+            });
+          }
+        });
+
+        return { assignments, unassigned };
+      };
+
+      const renderScenarioInput = (scenario, orders, fleet) => {
+        const totalPayload = orders.reduce((sum, order) => sum + order.payload, 0);
+        const averagePayload = totalPayload / orders.length;
+        const batteryValues = fleet.map((drone) => drone.battery);
+        const minBattery = Math.min(...batteryValues);
+        const maxBattery = Math.max(...batteryValues);
+        const batteryRange = minBattery === maxBattery
+          ? `${minBattery.toFixed(1)} Wh`
+          : `${minBattery.toFixed(1)}–${maxBattery.toFixed(1)} Wh`;
+        const counts = {};
+        orders.forEach((order) => {
+          counts[order.route] = (counts[order.route] || 0) + 1;
+        });
+
+        scenarioDescription.textContent = scenario.description;
+        inputOrders.textContent = String(orders.length);
+        inputPayload.textContent = `${totalPayload.toFixed(1)} kg`;
+        inputAverage.textContent = `${averagePayload.toFixed(2)} kg`;
+        inputFleet.textContent = `${fleet.length} · ${batteryRange}`;
+
+        routeMixBar.replaceChildren();
+        Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)).forEach(([route, count]) => {
+          const segment = document.createElement("div");
+          segment.className = "dfc-route-mix-segment";
+          segment.style.width = `${(count / orders.length) * 100}%`;
+          segment.style.background = routeColors[route];
+          segment.textContent = `${route} · ${count}`;
+          routeMixBar.appendChild(segment);
+        });
+        const routeSummary = Object.entries(counts)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([route, count]) => `${route} · ${count} order${count === 1 ? "" : "s"}`)
+          .join(" · ");
+        routeMixBar.setAttribute("aria-label", routeSummary);
+        routeMixLegend.textContent = routeSummary;
+      };
+
+      const renderMatrix = (assignments, safety, fleet) => {
+        matrixBody.replaceChildren();
+        const selectedCells = new Set(assignments.map((assignment) => `${assignment.drone.id}-${assignment.route}`));
+        fleet.forEach((drone) => {
+          const row = document.createElement("tr");
+          const nameCell = document.createElement("th");
+          nameCell.scope = "row";
+          nameCell.textContent = drone.name;
+          row.appendChild(nameCell);
+
+          const batteryCell = document.createElement("td");
+          batteryCell.textContent = `${drone.battery} Wh`;
+          row.appendChild(batteryCell);
+
+          Object.keys(routeEnergyModel).forEach((route) => {
+            const cell = document.createElement("td");
+            const capacity = feasiblePayload(drone, route, safety);
+            if (capacity < 0.05) {
+              cell.className = "dfc-cell-none";
+              cell.textContent = "—";
+            } else {
+              cell.className = selectedCells.has(`${drone.id}-${route}`) ? "dfc-cell-selected" : "dfc-cell-good";
+              cell.textContent = capacity.toFixed(2);
+            }
+            row.appendChild(cell);
+          });
+          matrixBody.appendChild(row);
+        });
+      };
+
+      const renderEnergyResult = (assignments, orders, safety, fleet) => {
+        const focus = assignments.slice().sort((a, b) => {
+          const utilizationA = a.orders.reduce((sum, order) => sum + order.payload, 0) / a.capacity;
+          const utilizationB = b.orders.reduce((sum, order) => sum + order.payload, 0) / b.capacity;
+          return utilizationB - utilizationA;
+        })[0];
+        const fallbackRoute = orders[0]?.route || "R1";
+        const drone = focus?.drone || fleet[fleet.length - 1];
+        const route = focus?.route || fallbackRoute;
+        const capacity = feasiblePayload(drone, route, safety);
+        const model = routeEnergyModel[route];
+        const budget = drone.battery * safety;
+
+        energyTitle.textContent = capacity > 0.05 ? `Why ${capacity.toFixed(2)} kg is feasible` : `${route} exceeds the energy envelope`;
+        energySubtitle.textContent = `${drone.name} · Route ${route} · deterministic energy estimate`;
+        energyNote.textContent = `Payload capacity is capped at 5.00 kg and evaluated against a ${(safety * 100).toFixed(0)}% usable-energy budget.`;
+
+        energyChart.replaceChildren();
+        const width = 420;
+        const height = 230;
+        const margin = { top: 22, right: 24, bottom: 41, left: 48 };
+        const x = (payload) => margin.left + (payload / 5) * (width - margin.left - margin.right);
+        const routeEnergyAtMaxPayload = model.base + model.slope * 5;
+        const rawYMin = Math.min(budget, model.base);
+        const rawYMax = Math.max(budget, routeEnergyAtMaxPayload);
+        const yPadding = Math.max(2, (rawYMax - rawYMin) * 0.12);
+        const yMin = Math.max(0, Math.floor((rawYMin - yPadding) / 5) * 5);
+        const yMax = Math.max(yMin + 10, Math.ceil((rawYMax + yPadding) / 5) * 5);
+        const y = (energy) => margin.top + (yMax - energy) / (yMax - yMin) * (height - margin.top - margin.bottom);
+
+        appendSvg(energyChart, "title", {}, `Estimated energy for ${drone.name} on ${route}`);
+        appendSvg(energyChart, "desc", {}, `The usable budget is ${budget.toFixed(1)} watt-hours and the estimated maximum payload is ${capacity.toFixed(2)} kilograms.`);
+        const tickStep = Math.max(2, Math.ceil(((yMax - yMin) / 4) / 5) * 5);
+        const yTicks = [];
+        for (let tick = yMin; tick <= yMax + 1e-9; tick += tickStep) yTicks.push(tick);
+        yTicks.forEach((tick) => {
+          appendSvg(energyChart, "line", { class: "dfc-gridline", x1: margin.left, x2: width - margin.right, y1: y(tick), y2: y(tick) });
+          appendSvg(energyChart, "text", { class: "dfc-chart-muted", x: margin.left - 7, y: y(tick) + 3, "text-anchor": "end" }, String(tick));
+        });
+        appendSvg(energyChart, "line", { class: "dfc-axis", x1: margin.left, x2: margin.left, y1: margin.top, y2: height - margin.bottom });
+        appendSvg(energyChart, "line", { class: "dfc-axis", x1: margin.left, x2: width - margin.right, y1: height - margin.bottom, y2: height - margin.bottom });
+        appendSvg(energyChart, "line", { class: "dfc-budget", x1: margin.left, x2: width - margin.right, y1: y(budget), y2: y(budget) });
+
+        const curvePoints = Array.from({ length: 11 }, (_, index) => {
+          const payload = index * 0.5;
+          return `${index ? "L" : "M"}${x(payload).toFixed(1)},${y(model.base + model.slope * payload).toFixed(1)}`;
+        }).join(" ");
+        appendSvg(energyChart, "path", { class: "dfc-curve", d: curvePoints });
+        const pointPayload = Math.min(5, capacity);
+        const pointEnergy = model.base + model.slope * pointPayload;
+        appendSvg(energyChart, "line", { class: "dfc-guide", x1: x(pointPayload), x2: x(pointPayload), y1: y(pointEnergy), y2: height - margin.bottom });
+        appendSvg(energyChart, "circle", { class: "dfc-point", cx: x(pointPayload), cy: y(pointEnergy), r: 6 });
+        appendSvg(energyChart, "text", { class: "dfc-chart-label", x: margin.left + 8, y: Math.max(14, y(budget) - 8) }, `${(safety * 100).toFixed(0)}% budget · ${budget.toFixed(1)} Wh`);
+        appendSvg(energyChart, "text", { class: "dfc-chart-label", x: width - margin.right, y: Math.min(height - margin.bottom - 10, y(pointEnergy) + 20), "text-anchor": "end" }, `Max ${capacity.toFixed(2)} kg`);
+        appendSvg(energyChart, "text", { class: "dfc-chart-muted", x: margin.left, y: height - 16 }, "0 kg");
+        appendSvg(energyChart, "text", { class: "dfc-chart-muted", x: width - margin.right, y: height - 16, "text-anchor": "end" }, "5 kg payload");
+      };
+
+      const renderAllocation = (assignments, unassigned, safety) => {
+        allocationContent.replaceChildren();
+        const byRoute = {};
+        assignments.forEach((assignment) => {
+          (byRoute[assignment.route] ||= []).push(assignment);
+        });
+
+        Object.entries(byRoute).sort(([a], [b]) => a.localeCompare(b)).forEach(([route, routeAssignments]) => {
+          const group = document.createElement("div");
+          group.className = "dfc-route-group";
+          const title = document.createElement("div");
+          title.className = "dfc-route-title";
+          title.textContent = `Route ${route}`;
+          group.appendChild(title);
+
+          routeAssignments.forEach((assignment) => {
+            const used = assignment.orders.reduce((sum, order) => sum + order.payload, 0);
+            const utilization = assignment.capacity ? used / assignment.capacity : 0;
+            const row = document.createElement("div");
+            row.className = "dfc-drone";
+
+            const droneName = document.createElement("div");
+            droneName.className = "dfc-drone-name";
+            droneName.textContent = assignment.drone.name;
+
+            const bar = document.createElement("div");
+            bar.className = "dfc-bar";
+            bar.setAttribute("aria-label", `${assignment.drone.name} carries ${assignment.orders.map((order) => `${order.id} at ${order.payload.toFixed(1)} kilograms`).join(" and ")}`);
+            assignment.orders.forEach((order, index) => {
+              const segment = document.createElement("div");
+              segment.className = `dfc-segment ${index % 2 ? "dfc-segment-b" : "dfc-segment-a"}`;
+              segment.style.width = `${Math.max(8, order.payload / assignment.capacity * 100)}%`;
+              segment.textContent = `${order.id} · ${order.payload.toFixed(1)}`;
+              bar.appendChild(segment);
+            });
+
+            const utilizationLabel = document.createElement("div");
+            utilizationLabel.className = `dfc-util ${utilization >= 0.85 ? "dfc-util-ok" : ""}`;
+            utilizationLabel.textContent = `${used.toFixed(1)} / ${assignment.capacity.toFixed(2)} kg · ${(utilization * 100).toFixed(0)}%`;
+            row.append(droneName, bar, utilizationLabel);
+            group.appendChild(row);
+          });
+          allocationContent.appendChild(group);
+        });
+
+        if (!assignments.length) {
+          const empty = document.createElement("div");
+          empty.className = "dfc-empty-selection";
+          empty.textContent = "No order can be assigned under the current energy constraints.";
+          allocationContent.appendChild(empty);
+        }
+
+        if (unassigned.length) {
+          const alert = document.createElement("div");
+          alert.className = "dfc-unassigned";
+          const content = document.createElement("div");
+          const heading = document.createElement("div");
+          heading.className = "text-destructive";
+          heading.textContent = `${unassigned.length} order${unassigned.length === 1 ? "" : "s"} cannot be assigned`;
+          const list = document.createElement("div");
+          list.className = "text-muted";
+          list.textContent = unassigned.map((order) => `${order.id} · ${order.route} · ${order.payload.toFixed(1)} kg`).join(" · ");
+          const reason = document.createElement("div");
+          reason.className = "text-muted text-small";
+          reason.textContent = `Payload exceeds the remaining route capacity at ${(safety * 100).toFixed(0)}% usable battery.`;
+          content.append(heading, list, reason);
+          alert.appendChild(content);
+          allocationContent.appendChild(alert);
+        }
+      };
+
+      const runDashboardScenario = () => {
+        scenarioValidation.hidden = true;
+        scenarioValidation.textContent = "";
+        const key = scenarioSelect.value;
+        const safety = Number(safetyMargin.value);
+        let scenario;
+        let rawOrders;
+        let fleet;
+
+        try {
+          fleet = readFleetConfiguration();
+          if (key === "custom") {
+            rawOrders = parseCustomOrders();
+            scenario = {
+              name: customName.value.trim() || "Custom delivery plan",
+              description: "User-provided route and payload data evaluated with the same deterministic allocation logic."
+            };
+          } else {
+            scenario = scenarioPresets[key];
+            rawOrders = scenario.orders;
+          }
+        } catch (error) {
+          scenarioValidation.textContent = error.message;
+          scenarioValidation.hidden = false;
+          return;
+        }
+
+        const orders = normalizeOrders(rawOrders);
+        const { assignments, unassigned } = allocateOrders(orders, safety, fleet);
+        const assignedCount = orders.length - unassigned.length;
+        const assignedPayload = assignments.reduce((sum, assignment) => sum + assignment.orders.reduce((orderSum, order) => orderSum + order.payload, 0), 0);
+        const totalCapacity = assignments.reduce((sum, assignment) => sum + assignment.capacity, 0);
+        const utilization = totalCapacity ? assignedPayload / totalCapacity : 0;
+        const remaining = Math.max(0, totalCapacity - assignedPayload);
+        const routes = [...new Set(assignments.map((assignment) => assignment.route))].sort();
+
+        dashboardTitle.textContent = `${orders.length} order${orders.length === 1 ? "" : "s"} need ${assignments.length} drone${assignments.length === 1 ? "" : "s"}; ${unassigned.length} order${unassigned.length === 1 ? "" : "s"} need attention`;
+        dashboardSubtitle.textContent = `${scenario.name} · ${(safety * 100).toFixed(0)}% usable battery · Updated after allocation`;
+        resultDrones.textContent = String(assignments.length);
+        resultRoutes.textContent = routes.length ? `Across ${routes.join(", ")}` : "No feasible route allocation";
+        resultOrders.textContent = `${assignedCount} / ${orders.length}`;
+        resultRate.textContent = `${Math.round(assignedCount / orders.length * 100)}% assignment rate`;
+        resultUtilization.textContent = `${Math.round(utilization * 100)}%`;
+        resultRemaining.textContent = `${remaining.toFixed(1)} kg capacity remains`;
+        runStatus.textContent = `Greedy best-fit allocation · ${fleet.length}-drone fleet · ${(safety * 100).toFixed(0)}% battery`;
+
+        renderScenarioInput(scenario, orders, fleet);
+        renderMatrix(assignments, safety, fleet);
+        renderEnergyResult(assignments, orders, safety, fleet);
+        renderAllocation(assignments, unassigned, safety);
+      };
+
+      const markScenarioPending = () => {
+        runStatus.textContent = "Changes pending · press Run Scenario to update results";
+      };
+
+      scenarioSelect.addEventListener("change", () => {
+        const custom = scenarioSelect.value === "custom";
+        customFields.hidden = !custom;
+        if (!custom) safetyMargin.value = scenarioPresets[scenarioSelect.value].safety.toFixed(2);
+        markScenarioPending();
+      });
+      safetyMargin.addEventListener("change", markScenarioPending);
+      customName.addEventListener("input", markScenarioPending);
+      customOrders.addEventListener("input", markScenarioPending);
+      droneCount.addEventListener("change", () => {
+        const parsed = Number(droneCount.value);
+        const count = Number.isInteger(parsed) ? Math.min(12, Math.max(1, parsed)) : 5;
+        droneCount.value = String(count);
+        renderFleetInputs(count);
+        markScenarioPending();
+      });
+      runScenarioButton.addEventListener("click", runDashboardScenario);
+      renderFleetInputs(Number(droneCount.value));
+      runDashboardScenario();
+
+      const renderProfileChart = ({
+        svg,
+        rows,
+        metric,
+        lower,
+        upper,
+        domain,
+        unit,
+        color,
+        route
+      }) => {
+        svg.replaceChildren();
+        const width = 520;
+        const height = 260;
+        const margin = { top: 24, right: 18, bottom: 38, left: 48 };
+        const plotWidth = width - margin.left - margin.right;
+        const plotHeight = height - margin.top - margin.bottom;
+        const x = (value) => margin.left + (value / 100) * plotWidth;
+        const y = (value) => {
+          const clamped = Math.max(domain[0], Math.min(domain[1], value));
+          return margin.top + plotHeight - ((clamped - domain[0]) / (domain[1] - domain[0])) * plotHeight;
+        };
+
+        appendSvg(svg, "title", {}, `${route} ${metric === "altitude" ? "altitude" : "speed"} profile`);
+        appendSvg(svg, "desc", {}, `Median and middle 50 percent band across normalized flight progress for ${route}.`);
+
+        const yTicks = metric === "altitude" ? [0, 25, 50, 75, 100] : [0, 2.5, 5, 7.5, 10];
+        yTicks.forEach((tick) => {
+          appendSvg(svg, "line", {
+            class: "dfc-profile-gridline",
+            x1: margin.left,
+            x2: width - margin.right,
+            y1: y(tick),
+            y2: y(tick)
+          });
+          appendSvg(svg, "text", {
+            class: "dfc-profile-label",
+            x: margin.left - 8,
+            y: y(tick) + 3,
+            "text-anchor": "end"
+          }, String(tick));
+        });
+
+        [0, 25, 50, 75, 100].forEach((tick) => {
+          appendSvg(svg, "text", {
+            class: "dfc-profile-label",
+            x: x(tick),
+            y: height - 15,
+            "text-anchor": "middle"
+          }, `${tick}%`);
+        });
+
+        appendSvg(svg, "line", {
+          class: "dfc-profile-axis",
+          x1: margin.left,
+          x2: width - margin.right,
+          y1: margin.top + plotHeight,
+          y2: margin.top + plotHeight
+        });
+
+        const upperPath = rows.map((row, index) => `${index ? "L" : "M"}${x(row.bin).toFixed(1)},${y(row[upper]).toFixed(1)}`).join(" ");
+        const lowerPath = rows.slice().reverse().map((row) => `L${x(row.bin).toFixed(1)},${y(row[lower]).toFixed(1)}`).join(" ");
+        appendSvg(svg, "path", {
+          class: "dfc-profile-area",
+          d: `${upperPath} ${lowerPath} Z`,
+          fill: color
+        });
+
+        const medianPath = rows.map((row, index) => `${index ? "L" : "M"}${x(row.bin).toFixed(1)},${y(row[metric]).toFixed(1)}`).join(" ");
+        appendSvg(svg, "path", {
+          class: "dfc-profile-line",
+          d: medianPath,
+          stroke: color
+        });
+
+        const peak = rows.reduce((best, row) => row[metric] > best[metric] ? row : best, rows[0]);
+        appendSvg(svg, "circle", {
+          cx: x(peak.bin),
+          cy: y(peak[metric]),
+          r: 3.5,
+          fill: color,
+          stroke: "var(--background)",
+          "stroke-width": 1.5
+        });
+        const labelRight = peak.bin < 72;
+        appendSvg(svg, "text", {
+          class: "dfc-profile-annotation",
+          x: x(peak.bin) + (labelRight ? 8 : -8),
+          y: Math.max(14, y(peak[metric]) - 8),
+          "text-anchor": labelRight ? "start" : "end"
+        }, `${peak[metric].toFixed(metric === "altitude" ? 1 : 2)} ${unit} · ${peak.bin}%`);
+
+        appendSvg(svg, "text", {
+          class: "dfc-profile-label",
+          x: width - margin.right,
+          y: 13,
+          "text-anchor": "end"
+        }, "median + IQR");
+      };
+
+      const updateProfile = () => {
+        const route = profileRoute.value;
+        const rows = profileData[route];
+        renderProfileChart({
+          svg: altitudeChart,
+          rows,
+          metric: "alt_med",
+          lower: "alt_q1",
+          upper: "alt_q3",
+          domain: [-5, 105],
+          unit: "m",
+          color: "var(--primary)",
+          route
+        });
+        renderProfileChart({
+          svg: speedChart,
+          rows,
+          metric: "speed_med",
+          lower: "speed_q1",
+          upper: "speed_q3",
+          domain: [0, 11],
+          unit: "m/s",
+          color: "var(--dfc-amber)",
+          route
+        });
+
+        const altitudePeak = rows.reduce((best, row) => row.alt_med > best.alt_med ? row : best, rows[0]);
+        const speedPeak = rows.reduce((best, row) => row.speed_med > best.speed_med ? row : best, rows[0]);
+        const count = profileCounts[route];
+        const coverage = count < 5 ? `Only ${count} flight${count === 1 ? "" : "s"}; treat this profile as descriptive.` : `${count} flights support the median profile.`;
+        profileSummary.textContent = `${route} reaches a median altitude peak of ${altitudePeak.alt_med.toFixed(1)} m near ${altitudePeak.bin}% progress and a median speed peak of ${speedPeak.speed_med.toFixed(2)} m/s near ${speedPeak.bin}%. ${coverage}`;
+      };
+
+      profileRoute.addEventListener("change", updateProfile);
+      updateProfile();
+
+      const bindFigureSelector = (name, singular, plural) => {
+        const selector = root.querySelector(`[data-dfc-selector="${name}"]`);
+        const grid = root.querySelector(`[data-dfc-selectable-grid="${name}"]`);
+        const summary = root.querySelector(`[data-dfc-selection-summary="${name}"]`);
+        const empty = root.querySelector(`[data-dfc-empty-selection="${name}"]`);
+        if (!selector || !grid || !summary || !empty) return;
+
+        const inputs = Array.from(selector.querySelectorAll('input[type="checkbox"]'));
+        const cards = Array.from(grid.querySelectorAll("[data-dfc-choice-card]"));
+
+        const updateSelection = () => {
+          const selected = new Set(inputs.filter((input) => input.checked).map((input) => input.value));
+          cards.forEach((card) => {
+            card.hidden = !selected.has(card.dataset.dfcChoiceCard);
+          });
+          const count = selected.size;
+          grid.dataset.count = String(count);
+          empty.hidden = count !== 0;
+          summary.textContent = `${count} ${count === 1 ? singular : plural} selected`;
+        };
+
+        inputs.forEach((input) => input.addEventListener("change", updateSelection));
+        updateSelection();
+      };
+
+      bindFigureSelector("routes", "route", "routes");
+      bindFigureSelector("notebook", "figure", "figures");
+
+      const tabs = Array.from(root.querySelectorAll("[data-dfc-tab]"));
+      const panels = Array.from(root.querySelectorAll("[data-dfc-panel]"));
+
+      const activateTab = (name, moveFocus = false) => {
+        tabs.forEach((tab) => {
+          const active = tab.dataset.dfcTab === name;
+          tab.setAttribute("aria-selected", String(active));
+          if (moveFocus && active) tab.focus();
+        });
+        panels.forEach((panel) => {
+          panel.hidden = panel.dataset.dfcPanel !== name;
+        });
+      };
+
+      tabs.forEach((tab, index) => {
+        tab.addEventListener("click", () => activateTab(tab.dataset.dfcTab));
+        tab.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          let nextIndex = index;
+          if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+          if (event.key === "Home") nextIndex = 0;
+          if (event.key === "End") nextIndex = tabs.length - 1;
+          activateTab(tabs[nextIndex].dataset.dfcTab, true);
+        });
+      });
+
+      const correlationData = {
+        missions: {
+          duration: 0.814,
+          accelerationMean: -0.700,
+          groundSpeed: -0.600,
+          height: 0.566,
+          distance: 0.532,
+          accelerationStd: -0.407,
+          payload: 0.338,
+          wind: -0.210
+        },
+        all: {
+          duration: 0.806,
+          accelerationMean: -0.257,
+          groundSpeed: 0.253,
+          height: 0.654,
+          distance: 0.718,
+          accelerationStd: 0.342,
+          payload: 0.412,
+          wind: 0.390
+        }
+      };
+
+      const insightData = {
+        missions: {
+          duration: ["Duration is the dominant signal", "Longer operational missions consume more energy (r = +0.814). This relationship is stronger than distance alone."],
+          accelerationMean: ["Acceleration is confounded by mission time", "Mean acceleration is negatively associated with energy (r = −0.700): shorter, more dynamic flights can accelerate more while consuming less total energy."],
+          groundSpeed: ["Faster missions are often shorter", "Ground speed has r = −0.600 within R1–R7. The sign should not be read as a direct efficiency gain without controlling for duration and route."],
+          height: ["Climb height remains important", "Maximum height has a moderate positive relationship with energy (r = +0.566), consistent with added climb work."],
+          distance: ["Distance matters, but time matters more", "Total distance has r = +0.532 for operational missions, below duration at +0.814."],
+          accelerationStd: ["Variability changes with mission shape", "Acceleration variability has r = −0.407 in R1–R7, but reverses sign when non-mission records are included."],
+          payload: ["Payload raises the energy baseline", "Mean energy rises from 19.15 Wh at 0 g to 23.08 Wh at 500 g. Controlling for duration strengthens the association to partial r = +0.590."],
+          wind: ["Raw wind effect is modest", "Mean wind speed has r = −0.210 in operational missions and partial r = +0.119 after controlling for duration; route and mission mix matter."]
+        },
+        all: {
+          duration: ["Duration remains the strongest signal", "Across all 209 records, duration retains a strong positive association with energy (r = +0.806)."],
+          accelerationMean: ["Mean acceleration stays negative", "Across all records, mean acceleration has r = −0.257. Duration coloring in the notebook helps expose this confounding."],
+          groundSpeed: ["Ground speed reverses direction", "The association changes from r = −0.600 in R1–R7 to +0.253 in all records because the added calibration and hover records change the cohort."],
+          height: ["Height is a strong aggregate signal", "Across all records, maximum height has r = +0.654, partly separating stationary calibration records from complete missions."],
+          distance: ["Distance looks stronger in the full cohort", "The all-record correlation rises to r = +0.718 because 13 calibration and hover records sit near zero distance."],
+          accelerationStd: ["Variability reverses direction", "The association changes from r = −0.407 in R1–R7 to +0.342 across all records—a cohort-composition warning."],
+          payload: ["Payload remains positively associated", "Payload has r = +0.412 across all records, but payload, height and route are not independently randomized."],
+          wind: ["Wind also reverses direction", "Wind changes from r = −0.210 for R1–R7 to +0.390 for all records. Operational conclusions should use the mission cohort."]
+        }
+      };
+
+      const cohortButtons = Array.from(root.querySelectorAll("[data-dfc-cohort]"));
+      const driverRows = Array.from(root.querySelectorAll("[data-dfc-driver]"));
+      const insightTitle = root.querySelector("[data-dfc-insight-title]");
+      const insightCopy = root.querySelector("[data-dfc-insight-copy]");
+      let activeCohort = "missions";
+      let activeDriver = "duration";
+
+      const formatCorrelation = (value) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(3)}`;
+
+      const updateCorrelationView = () => {
+        cohortButtons.forEach((button) => {
+          const active = button.dataset.dfcCohort === activeCohort;
+          button.setAttribute("aria-pressed", String(active));
+          button.classList.toggle("btn-ghost", !active);
+        });
+
+        driverRows.forEach((row) => {
+          const key = row.dataset.dfcDriver;
+          const value = correlationData[activeCohort][key];
+          const bar = row.querySelector(".dfc-corr-bar");
+          const valueLabel = row.querySelector(".dfc-corr-value");
+          const width = Math.abs(value) * 50;
+          const left = value >= 0 ? 50 : 50 - width;
+          bar.style.left = `${left}%`;
+          bar.style.width = `${width}%`;
+          bar.classList.toggle("is-positive", value >= 0);
+          bar.classList.toggle("is-negative", value < 0);
+          valueLabel.textContent = formatCorrelation(value);
+          row.setAttribute("aria-pressed", String(key === activeDriver));
+          row.setAttribute("aria-label", `${row.querySelector(".dfc-corr-label").textContent}: correlation ${formatCorrelation(value)}`);
+        });
+
+        const [title, copy] = insightData[activeCohort][activeDriver];
+        insightTitle.textContent = title;
+        insightCopy.textContent = copy;
+      };
+
+      cohortButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeCohort = button.dataset.dfcCohort;
+          updateCorrelationView();
+        });
+      });
+
+      driverRows.forEach((row) => {
+        row.addEventListener("click", () => {
+          activeDriver = row.dataset.dfcDriver;
+          updateCorrelationView();
+        });
+      });
+
+      updateCorrelationView();
+    })();
+  </script>
 </div>
-
-<script src="scripts.js"></script>
 </body>
 </html>
